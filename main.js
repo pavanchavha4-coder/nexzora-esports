@@ -38,6 +38,9 @@ const db = getFirestore(firebaseApp);
 
 const ADMIN_UID = '69EkQfAkuShSM5Fe5pCEs8nOv0l2';
 
+const FREE_FIRE_ROOM_LINK =
+  'https://ffshare.garena.com/?region=IND&lang=en&action=qrcode_room_invite_link&room_id=1346600962&qr_serect_code=1794852882634226469_apvlw164nd&version=OB55';
+
 const games = ['FREE FIRE', 'BGMI'];
 
 const tournaments = [
@@ -56,6 +59,7 @@ let unsubscribeMessages = null;
 let unsubscribeChats = null;
 
 const style = document.createElement('style');
+
 style.textContent = `
 *{box-sizing:border-box}
 body{margin:0;background:#080808;color:white;font-family:Arial,sans-serif}
@@ -377,6 +381,7 @@ async function handleChatButton(chatId, label) {
         'Hey there! 🎮\n\nWhich game do you want to play?',
         games
       );
+
     } else if (games.includes(label)) {
       const choices = tournaments
         .filter(t => t.game === label)
@@ -387,12 +392,25 @@ async function handleChatButton(chatId, label) {
         `Great choice! 🔥\n\nSelect your ${label} tournament:`,
         choices
       );
+
+    } else if (label === 'JOIN FREE FIRE ROOM') {
+      window.location.href = FREE_FIRE_ROOM_LINK;
+
     } else if (tournaments.some(t => t.name === label)) {
-      await addSystemMessage(
-        chatId,
-        `Your interest in ${label} has been received! 🎮\n\nPlease send your in-game name and ID. Our admin team will assist you shortly.`,
-        []
-      );
+
+      if (label.startsWith('FREE FIRE')) {
+        await addSystemMessage(
+          chatId,
+          `You selected ${label}! 🎮\n\nEntry: FREE\n\nTap below to join the Free Fire room.`,
+          ['JOIN FREE FIRE ROOM']
+        );
+      } else {
+        await addSystemMessage(
+          chatId,
+          `Your interest in ${label} has been received! 🎮\n\nPlease send your in-game name and ID. Our admin team will assist you shortly.`,
+          []
+        );
+      }
     }
   } catch (error) {
     alert('Could not continue: ' + error.message);
@@ -511,4 +529,4 @@ onAuthStateChanged(auth, user => {
     showPlayer();
   }
 });
-    
+  
