@@ -2,6 +2,7 @@
 import './style.css';
 
 import { initializeApp } from 'firebase/app';
+
 import {
   getAuth,
   createUserWithEmailAndPassword,
@@ -22,6 +23,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 
+// FIREBASE CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyBg2WjHxp9nctwUTG2P8fikp9GHjLtlQLw",
   authDomain: "nexzora-esports.firebaseapp.com",
@@ -35,45 +37,207 @@ const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
 
+// ADMIN UID
 const ADMIN_UID = '69EkQfAkuShSM5Fe5pCEs8nOv0l2';
 
+// TOURNAMENTS
 const tournaments = [
-  { name: 'FREE FIRE SOLO', mode: 'Solo', entry: 'FREE', prize: 'Sponsor Prize', time: 'Today - 7:00 PM' },
-  { name: 'FREE FIRE DUO', mode: 'Duo', entry: 'FREE', prize: 'Sponsor Prize', time: 'Today - 8:00 PM' },
-  { name: 'FREE FIRE SQUAD', mode: 'Squad', entry: 'FREE', prize: 'Sponsor Prize', time: 'Tomorrow - 7:00 PM' }
+  {
+    game: 'FREE FIRE',
+    name: 'FREE FIRE SOLO',
+    mode: 'Solo',
+    entry: 'FREE',
+    prize: 'Sponsor Prize',
+    time: 'Today - 7:00 PM'
+  },
+  {
+    game: 'FREE FIRE',
+    name: 'FREE FIRE DUO',
+    mode: 'Duo',
+    entry: 'FREE',
+    prize: 'Sponsor Prize',
+    time: 'Today - 8:00 PM'
+  },
+  {
+    game: 'FREE FIRE',
+    name: 'FREE FIRE SQUAD',
+    mode: 'Squad',
+    entry: 'FREE',
+    prize: 'Sponsor Prize',
+    time: 'Tomorrow - 7:00 PM'
+  },
+  {
+    game: 'BGMI',
+    name: 'BGMI SOLO',
+    mode: 'Solo',
+    entry: 'FREE',
+    prize: 'Sponsor Prize',
+    time: 'Today - 7:00 PM'
+  },
+  {
+    game: 'BGMI',
+    name: 'BGMI DUO',
+    mode: 'Duo',
+    entry: 'FREE',
+    prize: 'Sponsor Prize',
+    time: 'Today - 8:00 PM'
+  },
+  {
+    game: 'BGMI',
+    name: 'BGMI SQUAD',
+    mode: 'Squad',
+    entry: 'FREE',
+    prize: 'Sponsor Prize',
+    time: 'Tomorrow - 7:00 PM'
+  }
 ];
 
 const app = document.getElementById('app');
 
 let currentUser = null;
-let activeChatId = null;
 let unsubscribeMessages = null;
 let unsubscribeChats = null;
 
-const css = document.createElement('style');
-css.textContent = `
-*{box-sizing:border-box}
-body{margin:0;background:#090909;color:white;font-family:Arial,sans-serif}
-#app{max-width:650px;margin:auto;padding:16px}
-.header{text-align:center;padding:22px 8px}
-.logo{font-size:29px;font-weight:900;color:#ff3030;letter-spacing:2px}
-.subtitle{color:#aaa;margin-top:8px}
-.panel{background:#171717;border:1px solid #333;border-radius:13px;padding:17px;margin:14px 0}
-h2,h3{margin-top:0}
-input,button{width:100%;padding:13px;margin:7px 0;border-radius:8px;font-size:15px}
-input{background:#090909;border:1px solid #555;color:white}
-button{background:#d71920;color:white;border:0;font-weight:bold;cursor:pointer}
-button.secondary{background:#333}
-.join-btn{background:#d71920}
-.small{color:#aaa;font-size:13px}
-.message{padding:11px;margin:9px 0;border-radius:10px;background:#292929;overflow-wrap:anywhere}
-.mine{background:#542020}
-.chat-list button{text-align:left;background:#292929}
-#messages{height:300px;overflow-y:auto;border:1px solid #333;padding:10px;border-radius:10px}
-.footer{text-align:center;color:#777;padding:20px}
-`;
-document.head.appendChild(css);
+// DESIGN
+const design = document.createElement('style');
 
+design.textContent = `
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #080808;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+#app {
+  max-width: 650px;
+  margin: auto;
+  padding: 15px;
+}
+
+.header {
+  text-align: center;
+  padding: 25px 8px;
+  border-bottom: 2px solid #8d111b;
+  margin-bottom: 22px;
+}
+
+.logo {
+  color: #ff303c;
+  font-size: 29px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-shadow: 0 0 15px #e00020;
+}
+
+.subtitle {
+  color: #aaa;
+  letter-spacing: 4px;
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.panel {
+  background: #181818;
+  border: 1px solid #333;
+  border-radius: 15px;
+  padding: 18px;
+  margin: 14px 0;
+}
+
+h2, h3 {
+  margin-top: 0;
+}
+
+input {
+  width: 100%;
+  padding: 14px;
+  margin: 8px 0;
+  border-radius: 8px;
+  border: 1px solid #555;
+  background: #080808;
+  color: white;
+  font-size: 15px;
+}
+
+button {
+  width: 100%;
+  padding: 14px;
+  margin: 7px 0;
+  border: 0;
+  border-radius: 9px;
+  background: #d71920;
+  color: white;
+  font-weight: bold;
+  font-size: 15px;
+}
+
+button.secondary {
+  background: #333;
+}
+
+button:disabled {
+  opacity: 0.5;
+}
+
+.game-button {
+  min-height: 115px;
+  font-size: 21px;
+  border: 1px solid #ff303c;
+  background: linear-gradient(140deg, #380b10, #171717);
+}
+
+.game-icon {
+  display: block;
+  font-size: 30px;
+  margin-bottom: 8px;
+}
+
+.small {
+  color: #aaa;
+  font-size: 13px;
+}
+
+#messages {
+  height: 320px;
+  overflow-y: auto;
+  border: 1px solid #383838;
+  border-radius: 10px;
+  padding: 10px;
+  margin: 12px 0;
+}
+
+.message {
+  padding: 11px;
+  margin: 9px 0;
+  border-radius: 10px;
+  background: #292929;
+  overflow-wrap: anywhere;
+}
+
+.mine {
+  background: #542025;
+}
+
+.chat-list button {
+  background: #292929;
+  text-align: left;
+}
+
+.footer {
+  text-align: center;
+  color: #777;
+  padding: 20px;
+}
+`;
+
+document.head.appendChild(design);
+
+// COMMON HEADER
 function shell(content) {
   app.innerHTML = `
     <header class="header">
@@ -81,91 +245,162 @@ function shell(content) {
       <div class="subtitle">PLAY • COMPETE • WIN</div>
     </header>
     ${content}
+    <div class="footer">POWERED BY NEXZORA TECHNOLOGIES</div>
   `;
 }
 
+// LOGIN PAGE
 function showLogin() {
   shell(`
     <div class="panel">
-      <h2>Player Login</h2>
-      <input id="email" type="email" placeholder="Email address">
-      <input id="password" type="password" placeholder="Password">
+      <h2>PLAYER LOGIN</h2>
+
+      <input
+        id="email"
+        type="email"
+        placeholder="Enter email address"
+      >
+
+      <input
+        id="password"
+        type="password"
+        placeholder="Enter password"
+      >
+
       <button id="login">LOGIN</button>
-      <button id="register" class="secondary">CREATE NEW ACCOUNT</button>
-      <p class="small">Create an account to contact NEXZORA ESPORTS.</p>
+
+      <button id="register" class="secondary">
+        CREATE NEW ACCOUNT
+      </button>
+
+      <p class="small">
+        Login to play tournaments and chat privately with NEXZORA Admin.
+      </p>
     </div>
   `);
 
   document.getElementById('login').onclick = async () => {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+
     try {
-      await signInWithEmailAndPassword(
-        auth,
-        document.getElementById('email').value.trim(),
-        document.getElementById('password').value
-      );
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
       alert(error.message);
     }
   };
 
   document.getElementById('register').onclick = async () => {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (!email || password.length < 6) {
+      alert('Email enter karo aur password kam se kam 6 characters ka rakho.');
+      return;
+    }
+
     try {
-      await createUserWithEmailAndPassword(
-        auth,
-        document.getElementById('email').value.trim(),
-        document.getElementById('password').value
-      );
+      await createUserWithEmailAndPassword(auth, email, password);
     } catch (error) {
       alert(error.message);
     }
   };
 }
 
+// PLAYER GAME SELECTION
 function showPlayer() {
   shell(`
     <div class="panel">
-      <h2>Welcome Player</h2>
+      <h2>WELCOME PLAYER</h2>
       <p class="small">${currentUser.email || ''}</p>
       <button id="logout" class="secondary">LOGOUT</button>
     </div>
-    <h2>Available Tournaments</h2>
-    <div id="tournament-list"></div>
+
+    <h2>SELECT YOUR GAME</h2>
+    <p class="small">Choose your favourite game to see tournaments.</p>
+
     <div class="panel">
-      <h3>My Chat</h3>
-      <button id="my-chat">OPEN ADMIN CHAT</button>
+      <button class="game-button" id="freefire">
+        <span class="game-icon">🔥</span>
+        FREE FIRE
+      </button>
+
+      <button class="game-button" id="bgmi">
+        <span class="game-icon">🎯</span>
+        BGMI
+      </button>
     </div>
-    <div class="footer">NEXZORA TECHNOLOGIES</div>
+
+    <div class="panel">
+      <h3>PRIVATE SUPPORT CHAT</h3>
+      <p class="small">Contact NEXZORA Admin privately.</p>
+      <button id="my-chat">CHAT WITH ADMIN</button>
+    </div>
   `);
 
-  document.getElementById('logout').onclick = () => signOut(auth);
+  document.getElementById('logout').onclick =
+    () => signOut(auth);
+
+  document.getElementById('freefire').onclick =
+    () => showTournaments('FREE FIRE');
+
+  document.getElementById('bgmi').onclick =
+    () => showTournaments('BGMI');
+
+  document.getElementById('my-chat').onclick =
+    () => openChat();
+}
+
+// TOURNAMENT PAGE
+function showTournaments(game) {
+  shell(`
+    <div class="panel">
+      <h2>${game} TOURNAMENTS</h2>
+      <button id="back" class="secondary">
+        ← BACK TO GAMES
+      </button>
+    </div>
+
+    <div id="tournament-list"></div>
+
+    <div class="panel">
+      <button id="my-chat">CHAT WITH ADMIN</button>
+    </div>
+  `);
+
+  document.getElementById('back').onclick = showPlayer;
   document.getElementById('my-chat').onclick = () => openChat();
 
   const list = document.getElementById('tournament-list');
 
-  tournaments.forEach(t => {
-    const card = document.createElement('div');
-    card.className = 'panel';
+  tournaments
+    .filter(tournament => tournament.game === game)
+    .forEach(tournament => {
+      const card = document.createElement('div');
+      card.className = 'panel';
 
-    const title = document.createElement('h3');
-    title.textContent = t.name;
+      const title = document.createElement('h3');
+      title.textContent = tournament.name;
 
-    const details = document.createElement('p');
-    details.textContent =
-      `Mode: ${t.mode} | Entry: ${t.entry} | Prize: ${t.prize} | ${t.time}`;
+      const details = document.createElement('p');
+      details.textContent =
+        `Mode: ${tournament.mode} | Entry: ${tournament.entry} | Prize: ${tournament.prize} | Time: ${tournament.time}`;
 
-    const button = document.createElement('button');
-    button.className = 'join-btn';
-    button.textContent = 'REGISTER';
+      const register = document.createElement('button');
+      register.textContent = 'REGISTER';
 
-    button.onclick = () => {
-      openChat(`Hello Admin, I want to register for ${t.name}.`);
-    };
+      register.onclick = () => {
+        openChat(
+          `Hello Admin, I want to register for ${tournament.name}.`
+        );
+      };
 
-    card.append(title, details, button);
-    list.appendChild(card);
-  });
+      card.append(title, details, register);
+      list.appendChild(card);
+    });
 }
 
+// ADMIN PANEL
 function showAdmin() {
   shell(`
     <div class="panel">
@@ -173,14 +408,17 @@ function showAdmin() {
       <p class="small">Admin: ${currentUser.email || ''}</p>
       <button id="logout" class="secondary">LOGOUT</button>
     </div>
+
     <div class="panel">
-      <h3>Player Messages / Inbox</h3>
-      <div id="chat-list" class="chat-list">Loading chats...</div>
+      <h3>PLAYER MESSAGES / PRIVATE INBOX</h3>
+      <div id="chat-list">Loading chats...</div>
     </div>
+
     <div id="admin-chat"></div>
   `);
 
-  document.getElementById('logout').onclick = () => signOut(auth);
+  document.getElementById('logout').onclick =
+    () => signOut(auth);
 
   if (unsubscribeChats) unsubscribeChats();
 
@@ -199,47 +437,96 @@ function showAdmin() {
 
       snapshot.forEach(chat => {
         const data = chat.data();
-        if (chat.id === ADMIN_UID) return;
 
         const button = document.createElement('button');
-        button.textContent = data.playerEmail || chat.id;
-        button.onclick = () => openChat(null, chat.id);
+
+        button.textContent =
+          (data.playerEmail || 'Player') +
+          (data.lastMessage ? ' — ' + data.lastMessage : '');
+
+        button.onclick = () => openChat('', chat.id);
+
         list.appendChild(button);
       });
     },
-    error => alert('Inbox error: ' + error.message)
+    error => {
+      alert('Inbox error: ' + error.message);
+    }
   );
 }
 
+// PRIVATE CHAT
 function openChat(firstMessage = '', chatId = currentUser.uid) {
-  activeChatId = chatId;
+  if (unsubscribeMessages) {
+    unsubscribeMessages();
+    unsubscribeMessages = null;
+  }
 
-  if (unsubscribeMessages) unsubscribeMessages();
+  const isAdmin = currentUser.uid === ADMIN_UID;
 
-  const target = currentUser.uid === ADMIN_UID
+  const chatTarget = isAdmin
     ? document.getElementById('admin-chat')
     : app;
 
-  if (currentUser.uid !== ADMIN_UID) {
+  if (!chatTarget) return;
+
+  if (!isAdmin) {
     shell(`
       <div class="panel">
-        <h2>Chat with NEXZORA Admin</h2>
-        <button id="back" class="secondary">BACK</button>
+        <h2>PRIVATE ADMIN CHAT</h2>
+        <p class="small">
+          Only you and NEXZORA Admin can see this conversation.
+        </p>
+
+        <button id="back" class="secondary">← BACK</button>
+
         <div id="messages"></div>
-        <input id="message-input" placeholder="Type your message...">
+
+        <input
+          id="message-input"
+          maxlength="2000"
+          placeholder="Type your message..."
+        >
+
         <button id="send">SEND MESSAGE</button>
       </div>
     `);
-    document.getElementById('back').onclick = showPlayer;
+
+    document.getElementById('back').onclick = () => {
+      if (unsubscribeMessages) {
+        unsubscribeMessages();
+        unsubscribeMessages = null;
+      }
+      showPlayer();
+    };
   } else {
-    target.innerHTML = `
+    chatTarget.innerHTML = `
       <div class="panel">
-        <h3>Player Conversation</h3>
+        <h3>PRIVATE PLAYER CONVERSATION</h3>
+
+        <button id="close-chat" class="secondary">
+          ← BACK TO INBOX
+        </button>
+
         <div id="messages"></div>
-        <input id="message-input" placeholder="Type your reply...">
+
+        <input
+          id="message-input"
+          maxlength="2000"
+          placeholder="Write your reply..."
+        >
+
         <button id="send">SEND REPLY</button>
       </div>
     `;
+
+    document.getElementById('close-chat').onclick = () => {
+      if (unsubscribeMessages) {
+        unsubscribeMessages();
+        unsubscribeMessages = null;
+      }
+      document.getElementById('admin-chat').innerHTML = '';
+    };
   }
 
   const messagesBox = document.getElementById('messages');
@@ -248,12 +535,14 @@ function openChat(firstMessage = '', chatId = currentUser.uid) {
 
   const chatRef = doc(db, 'chats', chatId);
 
-  if (currentUser.uid !== ADMIN_UID) {
+  if (!isAdmin) {
     setDoc(chatRef, {
       uid: currentUser.uid,
       playerEmail: currentUser.email || '',
       updatedAt: serverTimestamp()
-    }, { merge: true }).catch(error => alert(error.message));
+    }, { merge: true }).catch(error => {
+      alert('Chat setup error: ' + error.message);
+    });
   }
 
   const messagesQuery = query(
@@ -268,45 +557,59 @@ function openChat(firstMessage = '', chatId = currentUser.uid) {
 
       snapshot.forEach(message => {
         const data = message.data();
+
         const bubble = document.createElement('div');
-        bubble.className = 'message' +
-          (data.senderUid === currentUser.uid ? ' mine' : '');
+        bubble.className = 'message';
+
+        if (data.senderUid === currentUser.uid) {
+          bubble.classList.add('mine');
+        }
 
         const sender = document.createElement('strong');
+
         sender.textContent =
-          data.senderUid === ADMIN_UID ? 'NEXZORA ADMIN' : 'PLAYER';
+          data.senderUid === ADMIN_UID
+            ? 'NEXZORA ADMIN'
+            : 'PLAYER';
 
-        const content = document.createElement('p');
-        content.textContent = data.text || '';
+        const text = document.createElement('p');
+        text.textContent = data.text || '';
 
-        bubble.append(sender, content);
+        bubble.append(sender, text);
         messagesBox.appendChild(bubble);
       });
 
       messagesBox.scrollTop = messagesBox.scrollHeight;
     },
-    error => alert('Message error: ' + error.message)
+    error => {
+      alert('Chat error: ' + error.message);
+    }
   );
 
   send.onclick = async () => {
-    const text = input.value.trim();
-    if (!text) return;
+    const messageText = input.value.trim();
+
+    if (!messageText) return;
 
     send.disabled = true;
 
     try {
-      await addDoc(collection(db, 'chats', chatId, 'messages'), {
-        senderUid: currentUser.uid,
-        text,
-        createdAt: serverTimestamp()
-      });
+      await addDoc(
+        collection(db, 'chats', chatId, 'messages'),
+        {
+          senderUid: currentUser.uid,
+          text: messageText,
+          createdAt: serverTimestamp()
+        }
+      );
 
       await setDoc(chatRef, {
-        lastMessage: text,
+        lastMessage: messageText,
         updatedAt: serverTimestamp()
       }, { merge: true });
 
       input.value = '';
+
     } catch (error) {
       alert('Message send nahi hua: ' + error.message);
     } finally {
@@ -314,12 +617,13 @@ function openChat(firstMessage = '', chatId = currentUser.uid) {
     }
   };
 
-  if (firstMessage && currentUser.uid !== ADMIN_UID) {
+  if (firstMessage && !isAdmin) {
     input.value = firstMessage;
   }
 }
 
-onAuthStateChanged(auth, async user => {
+// AUTHENTICATION CHECK
+onAuthStateChanged(auth, user => {
   currentUser = user;
 
   if (unsubscribeMessages) {
@@ -343,4 +647,4 @@ onAuthStateChanged(auth, async user => {
     showPlayer();
   }
 });
-  
+    
