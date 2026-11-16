@@ -1,0 +1,95 @@
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #090909;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.header {
+  padding: 22px 16px;
+  background: #111;
+  border-bottom: 1px solid #e50925;
+  text-align: center;
+}
+
+.logo {
+  color: #ff1738;
+  font-size: 25px;
+  font-weight: 900;
+  text-shadow: 0 0 15px #ff1738;
+}
+
+.subtitle {
+  color: #aaa;
+  font-size: 11px;
+  letter-spacing: 3px;
+  margin-top: 6px;
+}
+
+.container {
+  padding: 18px;
+}
+
+.section-title {
+  font-size: 20px;
+  margin: 20px 0 14px;
+}
+
+.tournament {
+  background: #171717;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.tournament h3 {
+  color: #ff2948;
+  margin-bottom: 10px;
+}
+
+.tournament p {
+  color: #ccc;
+  margin: 7px 0;
+  font-size: 14px;
+}
+
+.join-btn {
+  width: 100%;
+  padding: 13px;
+  margin-top: 12px;
+  background: #e50925;
+  color: white;
+  border: 0;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 15px;
+}
+
+.join-btn:active {
+  background: #a90019;
+}
+
+.notice {
+  background: #211116;
+  border: 1px solid #66202e;
+  padding: 13px;
+  border-radius: 10px;
+  color: #ffb8c3;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.footer {
+  text-align: center;
+  padding: 25px;
+  color: #777;
+  font-size: 12px;
+  }
+  
