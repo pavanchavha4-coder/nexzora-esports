@@ -2,6 +2,7 @@
 import './style.css';
 
 import { initializeApp } from 'firebase/app';
+
 import {
   getAuth,
   createUserWithEmailAndPassword,
@@ -17,6 +18,8 @@ import {
   setDoc,
   collection,
   addDoc,
+  getDocs,
+  writeBatch,
   query,
   orderBy,
   onSnapshot,
@@ -57,6 +60,7 @@ const app = document.getElementById('app');
 let currentUser = null;
 let unsubscribeMessages = null;
 let unsubscribeChats = null;
+let deletingChat = false;
 
 const style = document.createElement('style');
 
@@ -96,6 +100,8 @@ function shell(content) {
     <div class="footer">POWERED BY NEXZORA TECHNOLOGIES</div>
   `;
 }
+
+// LOGIN
 
 function showLogin() {
   shell(`
@@ -137,6 +143,8 @@ function showLogin() {
   };
 }
 
+// PLAYER HOME
+
 function showPlayer() {
   shell(`
     <div class="panel">
@@ -146,6 +154,7 @@ function showPlayer() {
     </div>
 
     <h2>SELECT YOUR GAME</h2>
+
     <div class="panel">
       <button class="game-button" id="freefire">🔥 FREE FIRE</button>
       <button class="game-button" id="bgmi">🎯 BGMI</button>
@@ -158,6 +167,7 @@ function showPlayer() {
   `);
 
   document.getElementById('logout').onclick = () => signOut(auth);
+
   document.getElementById('chat').onclick = () => openPlayerChat();
 
   document.getElementById('freefire').onclick =
@@ -167,17 +177,22 @@ function showPlayer() {
     () => showTournaments('BGMI');
 }
 
+// TOURNAMENTS
+
 function showTournaments(game) {
   shell(`
     <div class="panel">
       <h2>${game} TOURNAMENTS</h2>
       <button class="secondary" id="back">← BACK TO GAMES</button>
     </div>
+
     <div id="tournament-list"></div>
+
     <button id="chat">CHAT WITH NEXZORA</button>
   `);
 
   document.getElementById('back').onclick = showPlayer;
+
   document.getElementById('chat').onclick = () => openPlayerChat();
 
   const list = document.getElementById('tournament-list');
@@ -204,6 +219,8 @@ function showTournaments(game) {
   });
 }
 
+// ADMIN PANEL
+
 function showAdmin() {
   shell(`
     <div class="panel">
@@ -228,6 +245,7 @@ function showAdmin() {
     collection(db, 'chats'),
     snapshot => {
       const list = document.getElementById('chat-list');
+
       if (!list) return;
 
       list.innerHTML = '';
@@ -239,6 +257,7 @@ function showAdmin() {
 
       snapshot.forEach(chat => {
         const data = chat.data();
+
         const button = document.createElement('button');
 
         button.textContent =
@@ -246,12 +265,15 @@ function showAdmin() {
           ' — ' + (data.lastMessage || 'Open conversation');
 
         button.onclick = () => openAdminChat(chat.id);
+
         list.appendChild(button);
       });
     },
     error => alert(error.message)
   );
 }
+
+// SYSTEM MESSAGE
 
 async function addSystemMessage(chatId, text, buttons = []) {
   await addDoc(collection(db, 'chats', chatId, 'messages'), {
@@ -268,23 +290,109 @@ async function addSystemMessage(chatId, text, buttons = []) {
   }, { merge: true });
 }
 
+// DELETE COMPLETE CHAT
+
+async function deleteCompleteChat(chatId) {
+  if (
+    !currentUser ||
+    (currentUser.uid !== chatId && currentUser.uid !== ADMIN_UID)
+  ) {
+    throw new Error('You are not allowed to delete this chat.');
+  }
+
+  const messagesRef = collection(db, 'chats', chatId, 'messages');
+
+  // Read all messages in this conversation.
+  const snapshot = await getDocs(messagesRef);
+
+  // Delete messages in batches of 450.
+  const messageDocs = snapshot.docs;
+
+  for (let i = 0; i < messageDocs.length; i += 450) {
+    const batch = writeBatch(db);
+
+    messageDocs.slice(i, i + 450).forEach(message => {
+      batch.delete(message.ref);
+    });
+
+    await batch.commit();
+  }
+
+  // Delete parent chat document after its messages.
+  await deleteChatDocument(chatId);
+}
+
+async function deleteChatDocument(chatId) {
+  const batch = writeBatch(db);
+
+  batch.delete(doc(db, 'chats', chatId));
+
+  await batch.commit();
+}
+
+// PLAYER CHAT
+
 async function openPlayerChat(firstMessage = '') {
   const chatId = currentUser.uid;
+
+  deletingChat = false;
 
   if (unsubscribeMessages) unsubscribeMessages();
 
   shell(`
     <div class="panel">
       <h2>NEXZORA PRIVATE CHAT</h2>
-      <p class="small">Your conversation is private.</p>
-      <button class="secondary" id="back">← BACK</button>
+      <p class="small">Your conversation is temporary.</p>
+
+      <button class="secondary" id="back">← EXIT CHAT & DELETE</button>
+
       <div id="messages">Loading messages...</div>
+
       <input id="message-input" maxlength="2000" placeholder="Message...">
+
       <button id="send">SEND MESSAGE</button>
     </div>
   `);
 
-  document.getElementById('back').onclick = showPlayer;
+  document.getElementById('back').onclick = async () => {
+    if (deletingChat) return;
+
+    const backButton = document.getElementById('back');
+
+    deletingChat = true;
+    backButton.disabled = true;
+    backButton.textContent = 'DELETING CHAT...';
+
+    if (unsubscribeMessages) {
+      unsubscribeMessages();
+      unsubscribeMessages = null;
+    }
+
+    try {
+      await deleteCompleteChat(chatId);
+
+      deletingChat = false;
+      showPlayer();
+
+    } catch (error) {
+      deletingChat = false;
+
+      alert(
+        'Chat delete nahi ho payi. Firestore Rules check karo: ' +
+        error.message
+      );
+
+      listenToMessages(chatId);
+      setupPlayerSend();
+      
+      const button = document.getElementById('back');
+
+      if (button) {
+        button.disabled = false;
+        button.textContent = '← EXIT CHAT & DELETE';
+      }
+    }
+  };
 
   const chatRef = doc(db, 'chats', chatId);
 
@@ -304,20 +412,25 @@ async function openPlayerChat(firstMessage = '') {
         ['START NOW']
       );
 
-      await setDoc(chatRef, { welcomeSent: true }, { merge: true });
+      await setDoc(chatRef, {
+        welcomeSent: true
+      }, { merge: true });
     }
 
     if (firstMessage) {
       await sendPlayerText(firstMessage);
     }
+
   } catch (error) {
     alert('Chat error: ' + error.message);
     return;
   }
 
   listenToMessages(chatId);
-  setupPlayerSend(chatId);
+  setupPlayerSend();
 }
+
+// MESSAGE LISTENER
 
 function listenToMessages(chatId) {
   const messagesBox = document.getElementById('messages');
@@ -327,51 +440,61 @@ function listenToMessages(chatId) {
     orderBy('createdAt', 'asc')
   );
 
-  unsubscribeMessages = onSnapshot(messagesQuery, snapshot => {
-    if (!messagesBox) return;
+  unsubscribeMessages = onSnapshot(
+    messagesQuery,
+    snapshot => {
+      if (!messagesBox) return;
 
-    messagesBox.innerHTML = '';
+      messagesBox.innerHTML = '';
 
-    snapshot.forEach(item => {
-      const data = item.data();
+      snapshot.forEach(item => {
+        const data = item.data();
 
-      const bubble = document.createElement('div');
-      bubble.className = 'message';
+        const bubble = document.createElement('div');
+        bubble.className = 'message';
 
-      if (data.senderUid === currentUser.uid && !data.system) {
-        bubble.classList.add('mine');
-      }
+        if (data.senderUid === currentUser.uid && !data.system) {
+          bubble.classList.add('mine');
+        }
 
-      const name = document.createElement('div');
-      name.className = 'message-name';
-      name.textContent = data.system
-        ? 'NEXZORA ESPORTS'
-        : data.senderUid === ADMIN_UID
-          ? 'NEXZORA ADMIN'
-          : 'YOU';
+        const name = document.createElement('div');
+        name.className = 'message-name';
 
-      const text = document.createElement('div');
-      text.className = 'message-text';
-      text.textContent = data.text || '';
+        name.textContent = data.system
+          ? 'NEXZORA ESPORTS'
+          : data.senderUid === ADMIN_UID
+            ? 'NEXZORA ADMIN'
+            : 'YOU';
 
-      bubble.append(name, text);
+        const text = document.createElement('div');
+        text.className = 'message-text';
+        text.textContent = data.text || '';
 
-      if (data.system && Array.isArray(data.buttons)) {
-        data.buttons.forEach(label => {
-          const button = document.createElement('button');
-          button.className = 'action-button';
-          button.textContent = label;
-          button.onclick = () => handleChatButton(chatId, label);
-          bubble.appendChild(button);
-        });
-      }
+        bubble.append(name, text);
 
-      messagesBox.appendChild(bubble);
-    });
+        if (data.system && Array.isArray(data.buttons)) {
+          data.buttons.forEach(label => {
+            const button = document.createElement('button');
 
-    messagesBox.scrollTop = messagesBox.scrollHeight;
-  }, error => alert(error.message));
+            button.className = 'action-button';
+            button.textContent = label;
+
+            button.onclick = () => handleChatButton(chatId, label);
+
+            bubble.appendChild(button);
+          });
+        }
+
+        messagesBox.appendChild(bubble);
+      });
+
+      messagesBox.scrollTop = messagesBox.scrollHeight;
+    },
+    error => alert(error.message)
+  );
 }
+
+// AUTOMATIC CHAT BUTTONS
 
 async function handleChatButton(chatId, label) {
   try {
@@ -404,6 +527,7 @@ async function handleChatButton(chatId, label) {
           `You selected ${label}! 🎮\n\nEntry: FREE\n\nTap below to join the Free Fire room.`,
           ['JOIN FREE FIRE ROOM']
         );
+
       } else {
         await addSystemMessage(
           chatId,
@@ -412,10 +536,13 @@ async function handleChatButton(chatId, label) {
         );
       }
     }
+
   } catch (error) {
     alert('Could not continue: ' + error.message);
   }
 }
+
+// PLAYER SEND MESSAGE
 
 async function sendPlayerText(text) {
   const chatId = currentUser.uid;
@@ -438,15 +565,19 @@ function setupPlayerSend() {
   const input = document.getElementById('message-input');
   const button = document.getElementById('send');
 
+  if (!input || !button) return;
+
   button.onclick = async () => {
     const text = input.value.trim();
-    if (!text) return;
+
+    if (!text || deletingChat) return;
 
     button.disabled = true;
 
     try {
       await sendPlayerText(text);
       input.value = '';
+
     } catch (error) {
       alert(error.message);
     }
@@ -454,6 +585,8 @@ function setupPlayerSend() {
     button.disabled = false;
   };
 }
+
+// ADMIN CHAT
 
 function openAdminChat(chatId) {
   if (unsubscribeMessages) unsubscribeMessages();
@@ -463,16 +596,25 @@ function openAdminChat(chatId) {
   area.innerHTML = `
     <div class="panel">
       <h3>PLAYER PRIVATE CONVERSATION</h3>
-      <button class="secondary" id="close">← BACK TO INBOX</button>
+
+      <button class="secondary" id="close">
+        ← BACK TO INBOX
+      </button>
+
       <div id="messages"></div>
+
       <input id="message-input" maxlength="2000" placeholder="Write a reply...">
+
       <button id="send">SEND REPLY</button>
     </div>
   `;
 
   document.getElementById('close').onclick = () => {
-    if (unsubscribeMessages) unsubscribeMessages();
-    unsubscribeMessages = null;
+    if (unsubscribeMessages) {
+      unsubscribeMessages();
+      unsubscribeMessages = null;
+    }
+
     area.innerHTML = '';
   };
 
@@ -481,6 +623,7 @@ function openAdminChat(chatId) {
   document.getElementById('send').onclick = async () => {
     const input = document.getElementById('message-input');
     const button = document.getElementById('send');
+
     const text = input.value.trim();
 
     if (!text) return;
@@ -500,6 +643,7 @@ function openAdminChat(chatId) {
       }, { merge: true });
 
       input.value = '';
+
     } catch (error) {
       alert(error.message);
     }
@@ -507,6 +651,8 @@ function openAdminChat(chatId) {
     button.disabled = false;
   };
 }
+
+// AUTH STATE
 
 onAuthStateChanged(auth, user => {
   currentUser = user;
@@ -523,10 +669,11 @@ onAuthStateChanged(auth, user => {
 
   if (!user) {
     showLogin();
+
   } else if (user.uid === ADMIN_UID) {
     showAdmin();
+
   } else {
     showPlayer();
   }
 });
-  
