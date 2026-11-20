@@ -437,7 +437,6 @@ function showAdmin() {
       <span class="section-kicker">NEXZORA CONTROL CENTER</span>
       <h1>ADMIN <em>DASHBOARD</em></h1>
       <p>Manage your esports community from one place.</p>
-      <button class="secondary admin-logout" id="logout">LOGOUT</button>
     </section>
 
     <div class="admin-nav">
@@ -495,6 +494,10 @@ function showAdmin() {
       </div>
       <div id="admin-chat"></div>
     </section>
+
+    <div class="admin-footer-actions">
+      <button class="secondary admin-logout" id="logout">LOGOUT</button>
+    </div>
   `);
 
   document.getElementById('logout').onclick = () => signOut(auth);
