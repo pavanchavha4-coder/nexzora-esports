@@ -166,43 +166,41 @@ function showPlayer() {
   stopListeners();
 
   shell(`
-    <div class="home-actions">
-      <button class="secondary" id="profile">👤 PROFILE</button>
-      <button class="secondary" id="chat">💬 CHAT</button>
+    <div class="top-actions">
+      <button class="icon-action" id="profile" aria-label="Profile">👤<span>PROFILE</span></button>
+      <button class="icon-action" id="chat" aria-label="Chat">💬<span>CHAT</span></button>
     </div>
 
-    <div class="panel">
-      <h2>WELCOME TO NEXZORA</h2>
-      <p class="small" id="player-email"></p>
-    </div>
-
-    <section class="hero-live">
-      <h2>🔴 WATCH LIVE MATCH</h2>
-      <p class="small" id="live-description">Free Fire live match stream</p>
-      <div id="live-player" class="small" style="margin:12px 0">
-        Checking live match...
-      </div>
-      <button id="watch-live" disabled>WATCH LIVE MATCH</button>
+    <section class="welcome-banner">
+      <span class="eyebrow">WELCOME TO</span>
+      <h1>NEXZORA <em>ESPORTS</em></h1>
+      <p>Compete with champions. Rise on the leaderboard.</p>
+      <span class="game-tag">🔥 FREE FIRE ARENA</span>
     </section>
 
-    <div class="panel">
-      <h2>🏆 PLAYER SCORE LIST</h2>
+    <section class="hero-live">
+      <div class="section-kicker">NOW STREAMING</div>
+      <h2>🔴 WATCH LIVE MATCH</h2>
+      <p class="small" id="live-description">Free Fire live match stream</p>
+      <div id="live-player" class="small live-status" style="margin:12px 0">
+        Checking live match...
+      </div>
+      <button id="watch-live" disabled>▶ WATCH LIVE MATCH</button>
+    </section>
+
+    <div class="panel premium-panel">
+      <div class="panel-heading"><div><span class="section-kicker">TOP PLAYERS</span><h2>🏆 PLAYER SCORE LIST</h2></div><span class="live-dot">LIVE</span></div>
       <div id="score-list" class="small">Loading scores...</div>
     </div>
 
-    <div class="panel">
+    <div class="panel premium-panel">
+      <span class="section-kicker">JOIN THE BATTLE</span>
       <h2>🔥 FREE FIRE TOURNAMENTS</h2>
-      <p class="small">Choose your mode and register.</p>
-      <button class="game-button" id="freefire">
-        FREE FIRE TOURNAMENTS
-      </button>
+      <p class="small">Choose your mode and register for the next match.</p>
+      <button class="game-button" id="freefire">EXPLORE TOURNAMENTS</button>
     </div>
-
-    <button class="secondary" id="logout">LOGOUT</button>
+    <button class="secondary logout-wide" id="logout">LOGOUT</button>
   `);
-
-  document.getElementById('player-email').textContent =
-    currentUser.email || '';
 
   document.getElementById('logout').onclick = () => signOut(auth);
   document.getElementById('chat').onclick = () => openPlayerChat();
@@ -219,22 +217,28 @@ function showProfile() {
   stopListeners();
 
   shell(`
-    <div class="panel">
+    <div class="page-toolbar"><button class="secondary" id="back">← HOME</button><span class="section-kicker">PLAYER ACCOUNT</span></div>
+    <section class="profile-hero">
+      <div class="profile-avatar">👤</div>
+      <span class="section-kicker">NEXZORA MEMBER</span>
       <h2>PLAYER PROFILE</h2>
-      <p class="small" id="profile-email"></p>
-      <p class="small" id="profile-id"></p>
-      <button class="secondary" id="back">← BACK HOME</button>
-      <button id="logout">LOGOUT</button>
+      <p class="small">Your account details and player identity</p>
+    </section>
+    <div class="panel profile-details">
+      <div class="detail-label">REGISTERED EMAIL</div>
+      <div class="detail-value" id="profile-email"></div>
+      <div class="detail-label">PLAYER ID</div>
+      <div class="detail-value id-value" id="profile-id"></div>
+      <button class="game-button" id="profile-chat">💬 CONTACT NEXZORA</button>
+      <button class="secondary logout-wide" id="logout">LOGOUT FROM ACCOUNT</button>
     </div>
   `);
 
   document.getElementById('profile-email').textContent =
-    'Email: ' + (currentUser.email || 'Not available');
-
-  document.getElementById('profile-id').textContent =
-    'Player ID: ' + currentUser.uid;
-
+    currentUser.email || 'Not available';
+  document.getElementById('profile-id').textContent = currentUser.uid;
   document.getElementById('back').onclick = showPlayer;
+  document.getElementById('profile-chat').onclick = () => openPlayerChat();
   document.getElementById('logout').onclick = () => signOut(auth);
 }
 
@@ -436,43 +440,85 @@ function showAdmin() {
   stopListeners();
 
   shell(`
-    <div class="panel">
-      <h2>NEXZORA ADMIN PANEL</h2>
-      <p class="small" id="admin-email"></p>
-      <button class="secondary" id="logout">LOGOUT</button>
+    <section class="admin-hero">
+      <span class="section-kicker">NEXZORA CONTROL CENTER</span>
+      <h1>ADMIN <em>DASHBOARD</em></h1>
+      <p>Manage your esports community from one place.</p>
+      <button class="secondary admin-logout" id="logout">LOGOUT</button>
+    </section>
+
+    <div class="admin-nav">
+      <button class="admin-nav-btn active" data-target="admin-overview">OVERVIEW</button>
+      <button class="admin-nav-btn" data-target="admin-live">LIVE MATCH</button>
+      <button class="admin-nav-btn" data-target="admin-scores-section">SCORES</button>
+      <button class="admin-nav-btn" data-target="admin-inbox">PLAYER CHAT</button>
     </div>
 
-    <div class="panel">
-      <h3>🔴 LIVE MATCH CONTROL</h3>
-      <input id="live-title" maxlength="100" placeholder="Match title">
-      <input id="live-url" type="url" placeholder="YouTube / live stream URL">
-      <button id="save-live">SAVE LIVE MATCH LINK</button>
-      <p class="small">Player app mein Watch Live Match se link open hoga.</p>
-    </div>
+    <section id="admin-overview" class="admin-section">
+      <div class="admin-stat-grid">
+        <div class="admin-stat"><span>🎮</span><b>FREE FIRE</b><small>ACTIVE GAME</small></div>
+        <div class="admin-stat"><span>🏆</span><b>LEADERBOARD</b><small>PLAYER RANKING</small></div>
+        <div class="admin-stat"><span>📡</span><b>LIVE CONTROL</b><small>STREAM SETTINGS</small></div>
+        <div class="admin-stat"><span>💬</span><b>PLAYER SUPPORT</b><small>PRIVATE INBOX</small></div>
+      </div>
+      <div class="panel premium-panel">
+        <span class="section-kicker">QUICK ACTIONS</span>
+        <h2>MANAGE YOUR ARENA</h2>
+        <button class="game-button admin-jump" data-target="admin-live">🔴 UPDATE LIVE MATCH</button>
+        <button class="secondary admin-jump" data-target="admin-scores-section">🏆 MANAGE PLAYER SCORES</button>
+        <button class="secondary admin-jump" data-target="admin-inbox">💬 OPEN PLAYER INBOX</button>
+      </div>
+    </section>
 
-    <div class="panel">
-      <h3>🏆 ADD PLAYER SCORE</h3>
-      <input id="score-name" maxlength="60" placeholder="Player name">
-      <input id="score-value" type="number" min="0" placeholder="Score">
-      <input id="score-prize" maxlength="100" placeholder="Prize (optional)">
-      <button id="add-score">ADD TO SCORE LIST</button>
-      <div id="admin-scores" class="small"></div>
-    </div>
+    <section id="admin-live" class="admin-section" hidden>
+      <div class="panel premium-panel">
+        <span class="section-kicker">STREAM MANAGEMENT</span>
+        <h2>🔴 LIVE MATCH CONTROL</h2>
+        <input id="live-title" maxlength="100" placeholder="Match title">
+        <input id="live-url" type="url" placeholder="YouTube / live stream URL">
+        <button id="save-live">SAVE LIVE MATCH LINK</button>
+        <p class="small">Saved link will appear on player home screen.</p>
+      </div>
+    </section>
 
-    <div class="panel">
-      <h3>PRIVATE PLAYER INBOX</h3>
-      <div id="chat-list" class="chat-list">Loading...</div>
-    </div>
+    <section id="admin-scores-section" class="admin-section" hidden>
+      <div class="panel premium-panel">
+        <span class="section-kicker">RANKING MANAGEMENT</span>
+        <h2>🏆 ADD PLAYER SCORE</h2>
+        <input id="score-name" maxlength="60" placeholder="Player name">
+        <input id="score-value" type="number" min="0" placeholder="Score / points">
+        <input id="score-prize" maxlength="100" placeholder="Prize (optional)">
+        <button id="add-score">ADD TO LEADERBOARD</button>
+        <div id="admin-scores" class="small"></div>
+      </div>
+    </section>
 
-    <div id="admin-chat"></div>
+    <section id="admin-inbox" class="admin-section" hidden>
+      <div class="panel premium-panel">
+        <span class="section-kicker">PLAYER SUPPORT</span>
+        <h2>💬 PRIVATE PLAYER INBOX</h2>
+        <p class="small">Open a player's conversation to reply.</p>
+        <div id="chat-list" class="chat-list">Loading...</div>
+      </div>
+      <div id="admin-chat"></div>
+    </section>
   `);
-
-  document.getElementById('admin-email').textContent =
-    currentUser.email || '';
 
   document.getElementById('logout').onclick = () => signOut(auth);
   document.getElementById('save-live').onclick = saveLiveMatch;
   document.getElementById('add-score').onclick = addPlayerScore;
+
+  const showSection = id => {
+    document.querySelectorAll('.admin-section').forEach(section => {
+      section.hidden = section.id !== id;
+    });
+    document.querySelectorAll('.admin-nav-btn').forEach(button => {
+      button.classList.toggle('active', button.dataset.target === id);
+    });
+  };
+  document.querySelectorAll('.admin-nav-btn, .admin-jump').forEach(button => {
+    button.onclick = () => showSection(button.dataset.target);
+  });
 
   listenToAdminScores();
 
@@ -481,22 +527,17 @@ function showAdmin() {
     snapshot => {
       const list = document.getElementById('chat-list');
       if (!list) return;
-
       list.innerHTML = '';
-
       if (snapshot.empty) {
         list.textContent = 'No player messages yet.';
         return;
       }
-
       snapshot.forEach(chat => {
         const data = chat.data();
         const button = document.createElement('button');
-
-        button.textContent =
-          (data.playerEmail || 'Player') + ' — ' +
+        button.className = 'inbox-item';
+        button.textContent = (data.playerEmail || 'Player') + ' — ' +
           (data.lastMessage || 'Open conversation');
-
         button.onclick = () => openAdminChat(chat.id);
         list.appendChild(button);
       });
@@ -504,7 +545,6 @@ function showAdmin() {
     error => console.error(error)
   );
 }
-
 // ADMIN SAVE LIVE MATCH
 async function saveLiveMatch() {
   const title = document.getElementById('live-title').value.trim();
