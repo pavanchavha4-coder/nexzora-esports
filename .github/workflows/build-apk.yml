@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - esports-2-0-update
 
 jobs:
   build:
