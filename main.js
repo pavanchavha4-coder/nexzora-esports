@@ -2,7 +2,6 @@
 import './style.css';
 
 import { initializeApp } from 'firebase/app';
-
 import {
   getAuth,
   createUserWithEmailAndPassword,
@@ -14,7 +13,6 @@ import {
 import {
   getFirestore,
   doc,
-  getDoc,
   setDoc,
   collection,
   addDoc,
@@ -27,6 +25,7 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 
+// FIREBASE
 const firebaseConfig = {
   apiKey: "AIzaSyBg2WjHxp9nctwUTG2P8fikp9GHjLtlQLw",
   authDomain: "nexzora-esports.firebaseapp.com",
@@ -42,15 +41,10 @@ const db = getFirestore(firebaseApp);
 
 const ADMIN_UID = '69EkQfAkuShSM5Fe5pCEs8nOv0l2';
 
-const FREE_FIRE_ROOM_LINK =
-  'https://ffshare.garena.com/?region=IND&lang=en&action=qrcode_room_invite_link&room_id=1346600962&qr_serect_code=1794852882634226469_apvlw164nd&version=OB55';
-
-const games = ['FREE FIRE'];
-
 const tournaments = [
-  { game: 'FREE FIRE', name: 'FREE FIRE SOLO', mode: 'Solo' },
-  { game: 'FREE FIRE', name: 'FREE FIRE DUO', mode: 'Duo' },
-  { game: 'FREE FIRE', name: 'FREE FIRE SQUAD', mode: 'Squad' }
+  { name: 'FREE FIRE SOLO', mode: 'Solo' },
+  { name: 'FREE FIRE DUO', mode: 'Duo' },
+  { name: 'FREE FIRE SQUAD', mode: 'Squad' }
 ];
 
 const app = document.getElementById('app');
@@ -62,6 +56,7 @@ let unsubscribeLive = null;
 let unsubscribeScores = null;
 let deletingChat = false;
 
+// DESIGN
 const style = document.createElement('style');
 
 style.textContent = `
@@ -83,8 +78,6 @@ button:disabled{opacity:.5}
 .mine{margin-left:auto;background:#5539d9}
 .message-name{font-size:11px;color:#bbb;margin-bottom:7px}
 .message-text{white-space:pre-wrap;line-height:1.4}
-.action-button{background:#eee;color:#222;margin-top:12px}
-.chat-list button{text-align:left;background:#292929}
 .footer{text-align:center;color:#777;padding:20px}
 .home-actions{display:flex;justify-content:flex-end;gap:9px;margin:8px 0 16px}
 .home-actions button{width:auto;padding:10px 15px;margin:0}
@@ -97,6 +90,7 @@ button:disabled{opacity:.5}
 .score-name{flex:1;overflow-wrap:anywhere}
 .score-points{font-weight:bold;color:#ffd36a}
 .admin-delete{width:auto;padding:8px 10px;background:#333}
+.chat-list button{text-align:left;background:#292929}
 `;
 
 document.head.appendChild(style);
@@ -112,9 +106,22 @@ function shell(content) {
   `;
 }
 
-// LOGIN
+function stopListeners() {
+  if (unsubscribeMessages) unsubscribeMessages();
+  if (unsubscribeChats) unsubscribeChats();
+  if (unsubscribeLive) unsubscribeLive();
+  if (unsubscribeScores) unsubscribeScores();
 
+  unsubscribeMessages = null;
+  unsubscribeChats = null;
+  unsubscribeLive = null;
+  unsubscribeScores = null;
+}
+
+// LOGIN
 function showLogin() {
+  stopListeners();
+
   shell(`
     <div class="panel">
       <h2>PLAYER LOGIN</h2>
@@ -132,8 +139,8 @@ function showLogin() {
         document.getElementById('email').value.trim(),
         document.getElementById('password').value
       );
-    } catch (e) {
-      alert(e.message);
+    } catch (error) {
+      alert(error.message);
     }
   };
 
@@ -148,15 +155,16 @@ function showLogin() {
       }
 
       await createUserWithEmailAndPassword(auth, email, password);
-    } catch (e) {
-      alert(e.message);
+    } catch (error) {
+      alert(error.message);
     }
   };
 }
 
 // PLAYER HOME
-
 function showPlayer() {
+  stopListeners();
+
   shell(`
     <div class="home-actions">
       <button class="secondary" id="profile">👤 PROFILE</button>
@@ -165,7 +173,7 @@ function showPlayer() {
 
     <div class="panel">
       <h2>WELCOME TO NEXZORA</h2>
-      <p class="small">${currentUser.email || ''}</p>
+      <p class="small" id="player-email"></p>
     </div>
 
     <section class="hero-live">
@@ -193,11 +201,13 @@ function showPlayer() {
     <button class="secondary" id="logout">LOGOUT</button>
   `);
 
+  document.getElementById('player-email').textContent =
+    currentUser.email || '';
+
   document.getElementById('logout').onclick = () => signOut(auth);
   document.getElementById('chat').onclick = () => openPlayerChat();
-  document.getElementById('profile').onclick = () => showProfile();
-  document.getElementById('freefire').onclick =
-    () => showTournaments('FREE FIRE');
+  document.getElementById('profile').onclick = showProfile;
+  document.getElementById('freefire').onclick = showTournaments;
   document.getElementById('watch-live').onclick = openLiveMatch;
 
   listenToLiveMatch();
@@ -205,37 +215,43 @@ function showPlayer() {
 }
 
 // PROFILE
-
 function showProfile() {
+  stopListeners();
+
   shell(`
     <div class="panel">
       <h2>PLAYER PROFILE</h2>
-      <p class="small">Email: ${currentUser.email || 'Not available'}</p>
-      <p class="small">Player ID: ${currentUser.uid}</p>
+      <p class="small" id="profile-email"></p>
+      <p class="small" id="profile-id"></p>
       <button class="secondary" id="back">← BACK HOME</button>
       <button id="logout">LOGOUT</button>
     </div>
   `);
+
+  document.getElementById('profile-email').textContent =
+    'Email: ' + (currentUser.email || 'Not available');
+
+  document.getElementById('profile-id').textContent =
+    'Player ID: ' + currentUser.uid;
 
   document.getElementById('back').onclick = showPlayer;
   document.getElementById('logout').onclick = () => signOut(auth);
 }
 
 // LIVE MATCH
-
 function listenToLiveMatch() {
   if (unsubscribeLive) unsubscribeLive();
 
   unsubscribeLive = onSnapshot(
     doc(db, 'settings', 'liveMatch'),
-    snap => {
+    snapshot => {
       const desc = document.getElementById('live-description');
       const player = document.getElementById('live-player');
       const button = document.getElementById('watch-live');
 
       if (!desc || !player || !button) return;
 
-      const data = snap.exists() ? snap.data() : {};
+      const data = snapshot.exists() ? snapshot.data() : {};
 
       desc.textContent = data.title || 'Free Fire live match stream';
       player.textContent = data.url
@@ -273,6 +289,7 @@ function getYouTubeEmbed(url) {
     }
 
     if (!videoId) return '';
+
     return 'https://www.youtube.com/embed/' + videoId;
   } catch {
     return '';
@@ -319,27 +336,24 @@ function openLiveMatch() {
 }
 
 // PLAYER SCORE LIST
-
 function listenToScores() {
   if (unsubscribeScores) unsubscribeScores();
 
   unsubscribeScores = onSnapshot(
     query(collection(db, 'leaderboard'), orderBy('score', 'desc')),
-    snap => {
+    snapshot => {
       const list = document.getElementById('score-list');
-
       if (!list) return;
 
       list.innerHTML = '';
 
-      if (snap.empty) {
+      if (snapshot.empty) {
         list.textContent = 'Scores abhi add nahi hue hain.';
         return;
       }
 
-      snap.docs.forEach((item, index) => {
+      snapshot.docs.forEach((item, index) => {
         const data = item.data();
-
         const row = document.createElement('div');
         row.className = 'score-row';
 
@@ -370,8 +384,7 @@ function listenToScores() {
     error => {
       const list = document.getElementById('score-list');
       if (list) {
-        list.textContent =
-          'Score list load nahi hui. Firestore Rules check karein.';
+        list.textContent = 'Score list load nahi hui. Firestore Rules check karein.';
       }
       console.error(error);
     }
@@ -379,14 +392,14 @@ function listenToScores() {
 }
 
 // TOURNAMENTS
+function showTournaments() {
+  stopListeners();
 
-function showTournaments(game) {
   shell(`
     <div class="panel">
-      <h2>${game} TOURNAMENTS</h2>
+      <h2>FREE FIRE TOURNAMENTS</h2>
       <button class="secondary" id="back">← BACK HOME</button>
     </div>
-
     <div id="tournament-list"></div>
     <button id="chat">CHAT WITH NEXZORA</button>
   `);
@@ -396,21 +409,21 @@ function showTournaments(game) {
 
   const list = document.getElementById('tournament-list');
 
-  tournaments.filter(t => t.game === game).forEach(t => {
+  tournaments.forEach(tournament => {
     const card = document.createElement('div');
     card.className = 'panel';
 
     const title = document.createElement('h3');
-    title.textContent = t.name;
+    title.textContent = tournament.name;
 
     const details = document.createElement('p');
-    details.textContent = `Mode: ${t.mode} | Entry: FREE`;
+    details.textContent = `Mode: ${tournament.mode} | Entry: FREE`;
 
     const button = document.createElement('button');
     button.textContent = 'REGISTER';
 
     button.onclick = () => openPlayerChat(
-      `I want to register for ${t.name}.`
+      `I want to register for ${tournament.name}.`
     );
 
     card.append(title, details, button);
@@ -419,12 +432,13 @@ function showTournaments(game) {
 }
 
 // ADMIN PANEL
-
 function showAdmin() {
+  stopListeners();
+
   shell(`
     <div class="panel">
       <h2>NEXZORA ADMIN PANEL</h2>
-      <p class="small">${currentUser.email || ''}</p>
+      <p class="small" id="admin-email"></p>
       <button class="secondary" id="logout">LOGOUT</button>
     </div>
 
@@ -447,11 +461,14 @@ function showAdmin() {
 
     <div class="panel">
       <h3>PRIVATE PLAYER INBOX</h3>
-      <div id="chat-list">Loading...</div>
+      <div id="chat-list" class="chat-list">Loading...</div>
     </div>
 
     <div id="admin-chat"></div>
   `);
+
+  document.getElementById('admin-email').textContent =
+    currentUser.email || '';
 
   document.getElementById('logout').onclick = () => signOut(auth);
   document.getElementById('save-live').onclick = saveLiveMatch;
@@ -459,13 +476,10 @@ function showAdmin() {
 
   listenToAdminScores();
 
-  if (unsubscribeChats) unsubscribeChats();
-
   unsubscribeChats = onSnapshot(
     collection(db, 'chats'),
     snapshot => {
       const list = document.getElementById('chat-list');
-
       if (!list) return;
 
       list.innerHTML = '';
@@ -480,20 +494,18 @@ function showAdmin() {
         const button = document.createElement('button');
 
         button.textContent =
-          (data.playerEmail || 'Player') +
-          ' — ' +
+          (data.playerEmail || 'Player') + ' — ' +
           (data.lastMessage || 'Open conversation');
 
         button.onclick = () => openAdminChat(chat.id);
         list.appendChild(button);
       });
     },
-    error => alert(error.message)
+    error => console.error(error)
   );
 }
 
 // ADMIN SAVE LIVE MATCH
-
 async function saveLiveMatch() {
   const title = document.getElementById('live-title').value.trim();
   const url = document.getElementById('live-url').value.trim();
@@ -523,8 +535,7 @@ async function saveLiveMatch() {
   }
 }
 
-// ADMIN ADD PLAYER SCORE
-
+// ADMIN ADD SCORE
 async function addPlayerScore() {
   const name = document.getElementById('score-name').value.trim();
   const score = Number(document.getElementById('score-value').value);
@@ -555,20 +566,18 @@ async function addPlayerScore() {
 }
 
 // ADMIN SCORE MANAGEMENT
-
 function listenToAdminScores() {
   if (unsubscribeScores) unsubscribeScores();
 
   unsubscribeScores = onSnapshot(
     query(collection(db, 'leaderboard'), orderBy('score', 'desc')),
-    snap => {
+    snapshot => {
       const area = document.getElementById('admin-scores');
-
       if (!area) return;
 
       area.innerHTML = '';
 
-      snap.forEach(item => {
+      snapshot.forEach(item => {
         const data = item.data();
         const row = document.createElement('div');
         row.className = 'score-row';
@@ -576,7 +585,8 @@ function listenToAdminScores() {
         const label = document.createElement('span');
         label.className = 'score-name';
         label.textContent =
-          data.playerName + ' — ' + data.score + ' pts' +
+          (data.playerName || 'Player') + ' — ' +
+          data.score + ' pts' +
           (data.prize ? ' • ' + data.prize : '');
 
         const remove = document.createElement('button');
@@ -601,101 +611,75 @@ function listenToAdminScores() {
   );
 }
 
-// SYSTEM MESSAGE
-
-async function addSystemMessage(chatId, text, buttons = []) {
-  await addDoc(collection(db, 'chats', chatId, 'messages'), {
-    senderUid: currentUser.uid,
-    system: true,
-    text,
-    buttons,
-    createdAt: serverTimestamp()
-  });
-
+// CHAT MESSAGE HELPERS
+async function updateChatInfo(chatId, message) {
   await setDoc(doc(db, 'chats', chatId), {
-    lastMessage: text,
+    playerEmail: currentUser.email || 'Player',
+    lastMessage: message,
     updatedAt: serverTimestamp()
   }, { merge: true });
 }
 
-// DELETE COMPLETE CHAT
+async function sendChatMessage(chatId, message, isAdmin = false) {
+  const cleanMessage = message.trim();
 
-async function deleteCompleteChat(chatId) {
-  if (
-    !currentUser ||
-    (currentUser.uid !== chatId && currentUser.uid !== ADMIN_UID)
-  ) {
-    throw new Error('You are not allowed to delete this chat.');
-  }
+  if (!cleanMessage) return;
 
-  const messagesRef = collection(db, 'chats', chatId, 'messages');
-  const snapshot = await getDocs(messagesRef);
-  const messageDocs = snapshot.docs;
+  await addDoc(collection(db, 'chats', chatId, 'messages'), {
+    senderUid: currentUser.uid,
+    senderName: isAdmin ? 'NEXZORA ADMIN' : 'PLAYER',
+    text: cleanMessage,
+    system: false,
+    createdAt: serverTimestamp()
+  });
 
-  for (let i = 0; i < messageDocs.length; i += 450) {
-    const batch = writeBatch(db);
+  await updateChatInfo(chatId, cleanMessage);
+}
 
-    messageDocs.slice(i, i + 450).forEach(message => {
-      batch.delete(message.ref);
-    });
+function listenToMessages(chatId) {
+  if (unsubscribeMessages) unsubscribeMessages();
 
-    await batch.commit();
-  }
+  unsubscribeMessages = onSnapshot(
+    query(
+      collection(db, 'chats', chatId, 'messages'),
+      orderBy('createdAt', 'asc')
+    ),
+    snapshot => {
+      const area = document.getElementById('messages');
+      if (!area) return;
 
-  await deleteDoc(doc(db, 'chats', chatId));
+      area.innerHTML = '';
+
+      snapshot.forEach(item => {
+        const data = item.data();
+
+        const message = document.createElement('div');
+        message.className =
+          'message' +
+          (data.senderUid === currentUser.uid ? ' mine' : '');
+
+        const name = document.createElement('div');
+        name.className = 'message-name';
+        name.textContent = data.senderName ||
+          (data.system ? 'SYSTEM' : 'MESSAGE');
+
+        const text = document.createElement('div');
+        text.className = 'message-text';
+        text.textContent = data.text || '';
+
+        message.append(name, text);
+        area.appendChild(message);
+      });
+
+      area.scrollTop = area.scrollHeight;
+    },
+    error => {
+      console.error(error);
+      const area = document.getElementById('messages');
+      if (area) area.textContent = 'Messages load nahi hue. Rules check karein.';
+    }
+  );
 }
 
 // PLAYER CHAT
-
-async function openPlayerChat(firstMessage = '') {
-  const chatId = currentUser.uid;
-
-  deletingChat = false;
-
-  if (unsubscribeMessages) unsubscribeMessages();
-
-  shell(`
-    <div class="panel">
-      <h2>NEXZORA PRIVATE CHAT</h2>
-      <p class="small">Your conversation is temporary.</p>
-
-      <button class="secondary" id="back">← EXIT CHAT & DELETE</button>
-
-      <div id="messages">Loading messages...</div>
-
-      <input id="message-input" maxlength="2000" placeholder="Message...">
-
-      <button id="send">SEND MESSAGE</button>
-    </div>
-  `);
-
-  document.getElementById('back').onclick = async () => {
-    if (deletingChat) return;
-
-    const backButton = document.getElementById('back');
-
-    deletingChat = true;
-    backButton.disabled = true;
-    backButton.textContent = 'DELETING CHAT...';
-
-    if (unsubscribeMessages) {
-      unsubscribeMessages();
-      unsubscribeMessages = null;
-    }
-
-    try {
-      await deleteCompleteChat(chatId);
-      deletingChat = false;
-      showPlayer();
-    } catch (error) {
-      deletingChat = false;
-
-      alert('Chat delete nahi ho payi. Firestore Rules check karo: ' + error.message);
-
-      listenToMessages(chatId);
-      setupPlayerSend();
-
-      const button = document.getElementById('back');
-
-      if (button) {
-        button.disabled = f
+async function openPlayerChat(firstMess
