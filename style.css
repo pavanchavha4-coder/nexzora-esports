@@ -158,3 +158,33 @@ input{background:#0d0b0c;border:1px solid #453039;border-radius:10px;color:white
 #admin-chat{margin-top:12px}
 .footer{color:#806a72;font-size:9px;letter-spacing:2px;padding:25px 10px}
 @media(max-width:390px){.admin-nav-btn{font-size:8px}.welcome-banner h1,.admin-hero h1{font-size:24px}.admin-hero{padding-right:95px}}
+
+
+/* Compact live match and always-visible top 10 leaderboard */
+.hero-live{padding:14px 16px;margin:10px 0 14px;border-radius:14px}
+.hero-live h2{font-size:17px;margin-bottom:6px}
+.hero-live .section-kicker{font-size:9px;margin-bottom:4px}
+.hero-live p{font-size:12px;margin:4px 0}
+.hero-live #live-player{margin:7px 0!important;font-size:11px}
+.hero-live #watch-live{padding:10px 13px;font-size:12px}
+#score-list{display:block}
+#score-list .score-row{display:flex;align-items:center;gap:9px;margin:7px 0;padding:10px 12px;border-radius:11px;min-height:42px}
+#score-list .score-rank{font-weight:900;min-width:30px}
+#score-list .score-name{font-weight:700}
+#score-list .score-points{font-weight:800}
+#score-list .rank-1{min-height:76px;padding:17px 15px;margin:11px 0;background:linear-gradient(110deg,#482b12,#21170f);border:1px solid #c18b39;box-shadow:0 0 18px rgba(193,139,57,.14)}
+#score-list .rank-1 .score-rank{font-size:24px;color:#ffd36b;min-width:38px}
+#score-list .rank-1 .score-name{font-size:18px;color:#ffe7ad}
+#score-list .rank-1 .score-points{font-size:15px;color:#ffd36b}
+#score-list .rank-2{min-height:61px;padding:13px;background:linear-gradient(110deg,#28282b,#171719);border:1px solid #777}
+#score-list .rank-2 .score-rank{font-size:19px;color:#dedee4}
+#score-list .rank-2 .score-name{font-size:15px}
+#score-list .rank-2 .score-points{font-size:13px}
+#score-list .rank-3{min-height:55px;padding:11px;background:linear-gradient(110deg,#332016,#1b1310);border:1px solid #805337}
+#score-list .rank-3 .score-rank{font-size:17px;color:#d99568}
+#score-list .rank-3 .score-name{font-size:14px}
+#score-list .rank-3 .score-points{font-size:12px}
+#score-list .rank-4,#score-list .rank-5,#score-list .rank-6,#score-list .rank-7,#score-list .rank-8,#score-list .rank-9,#score-list .rank-10{min-height:38px;padding:8px 11px;background:#100d0f;border:1px solid #302329}
+#score-list .rank-4 .score-rank,#score-list .rank-5 .score-rank,#score-list .rank-6 .score-rank,#score-list .rank-7 .score-rank,#score-list .rank-8 .score-rank,#score-list .rank-9 .score-rank,#score-list .rank-10 .score-rank{font-size:12px;color:#a99ba0}
+#score-list .rank-4 .score-name,#score-list .rank-5 .score-name,#score-list .rank-6 .score-name,#score-list .rank-7 .score-name,#score-list .rank-8 .score-name,#score-list .rank-9 .score-name,#score-list .rank-10 .score-name{font-size:12px;font-weight:600}
+#score-list .rank-4 .score-points,#score-list .rank-5 .score-points,#score-list .rank-6 .score-points,#score-list .rank-7 .score-points,#score-list .rank-8 .score-points,#score-list .rank-9 .score-points,#score-list .rank-10 .score-points{font-size:11px;color:#c4aab2}
