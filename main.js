@@ -682,4 +682,117 @@ function listenToMessages(chatId) {
 }
 
 // PLAYER CHAT
-async function openPlayerChat(firstMess
+async function openPlayerChat(firstMessage = '') {
+  stopListeners();
+
+  const chatId = currentUser.uid;
+  shell(`
+    <div class="panel">
+      <h2>💬 PLAYER CHAT</h2>
+      <p class="small">Admin ko message bhejo. Chat se exit karne par conversation clear ho jayegi.</p>
+      <div id="messages" class="messages"></div>
+      <input id="chat-input" maxlength="500" placeholder="Type your message...">
+      <button id="send-chat">SEND MESSAGE</button>
+      <button class="secondary" id="exit-chat">EXIT CHAT</button>
+    </div>
+  `);
+
+  listenToMessages(chatId);
+
+  document.getElementById('send-chat').onclick = async () => {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+    try {
+      await sendChatMessage(chatId, message);
+      input.value = '';
+    } catch (error) {
+      alert('Message send nahi hua: ' + error.message);
+    }
+  };
+
+  document.getElementById('chat-input').addEventListener('keydown', event => {
+    if (event.key === 'Enter') document.getElementById('send-chat').click();
+  });
+
+  document.getElementById('exit-chat').onclick = async () => {
+    if (unsubscribeMessages) {
+      unsubscribeMessages();
+      unsubscribeMessages = null;
+    }
+    try {
+      const messages = await getDocs(collection(db, 'chats', chatId, 'messages'));
+      const batch = writeBatch(db);
+      messages.forEach(item => batch.delete(item.ref));
+      batch.delete(doc(db, 'chats', chatId));
+      await batch.commit();
+    } catch (error) {
+      console.error('Chat cleanup failed:', error);
+      alert('Chat clear nahi ho payi. Firestore rules check karein.');
+    }
+    showPlayer();
+  };
+
+  if (firstMessage) {
+    const input = document.getElementById('chat-input');
+    input.value = firstMessage;
+  }
+}
+
+function openAdminChat(chatId) {
+  const holder = document.getElementById('admin-chat');
+  if (!holder) return;
+
+  if (unsubscribeMessages) {
+    unsubscribeMessages();
+    unsubscribeMessages = null;
+  }
+
+  holder.innerHTML = `
+    <div class="panel">
+      <h3>PLAYER CONVERSATION</h3>
+      <div id="messages" class="messages"></div>
+      <input id="admin-chat-input" maxlength="500" placeholder="Reply to player...">
+      <button id="admin-send-chat">SEND REPLY</button>
+      <button class="secondary" id="close-admin-chat">CLOSE CHAT</button>
+    </div>
+  `;
+
+  listenToMessages(chatId);
+
+  document.getElementById('admin-send-chat').onclick = async () => {
+    const input = document.getElementById('admin-chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+    try {
+      await sendChatMessage(chatId, message, true);
+      input.value = '';
+    } catch (error) {
+      alert('Reply send nahi hua: ' + error.message);
+    }
+  };
+
+  document.getElementById('close-admin-chat').onclick = () => {
+    if (unsubscribeMessages) {
+      unsubscribeMessages();
+      unsubscribeMessages = null;
+    }
+    holder.innerHTML = '';
+  };
+}
+
+// AUTH ROUTING
+onAuthStateChanged(auth, user => {
+  currentUser = user;
+  if (!user) {
+    stopListeners();
+    showLogin();
+    return;
+  }
+
+  if (user.uid === ADMIN_UID) {
+    showAdmin();
+  } else {
+    showPlayer();
+  }
+});
