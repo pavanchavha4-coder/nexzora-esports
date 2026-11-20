@@ -193,19 +193,12 @@ function showPlayer() {
       <div id="score-list" class="small">Loading scores...</div>
     </div>
 
-    <div class="panel premium-panel">
-      <span class="section-kicker">JOIN THE BATTLE</span>
-      <h2>🔥 FREE FIRE TOURNAMENTS</h2>
-      <p class="small">Choose your mode and register for the next match.</p>
-      <button class="game-button" id="freefire">EXPLORE TOURNAMENTS</button>
-    </div>
     <button class="secondary logout-wide" id="logout">LOGOUT</button>
   `);
 
   document.getElementById('logout').onclick = () => signOut(auth);
   document.getElementById('chat').onclick = () => openPlayerChat();
   document.getElementById('profile').onclick = showProfile;
-  document.getElementById('freefire').onclick = showTournaments;
   document.getElementById('watch-live').onclick = openLiveMatch;
 
   listenToLiveMatch();
@@ -356,10 +349,10 @@ function listenToScores() {
         return;
       }
 
-      snapshot.docs.forEach((item, index) => {
+      snapshot.docs.slice(0, 10).forEach((item, index) => {
         const data = item.data();
         const row = document.createElement('div');
-        row.className = 'score-row';
+        row.className = 'score-row rank-' + (index + 1);
 
         const rank = document.createElement('span');
         rank.className = 'score-rank';
