@@ -188,3 +188,8 @@ input{background:#0d0b0c;border:1px solid #453039;border-radius:10px;color:white
 #score-list .rank-4 .score-rank,#score-list .rank-5 .score-rank,#score-list .rank-6 .score-rank,#score-list .rank-7 .score-rank,#score-list .rank-8 .score-rank,#score-list .rank-9 .score-rank,#score-list .rank-10 .score-rank{font-size:12px;color:#a99ba0}
 #score-list .rank-4 .score-name,#score-list .rank-5 .score-name,#score-list .rank-6 .score-name,#score-list .rank-7 .score-name,#score-list .rank-8 .score-name,#score-list .rank-9 .score-name,#score-list .rank-10 .score-name{font-size:12px;font-weight:600}
 #score-list .rank-4 .score-points,#score-list .rank-5 .score-points,#score-list .rank-6 .score-points,#score-list .rank-7 .score-points,#score-list .rank-8 .score-points,#score-list .rank-9 .score-points,#score-list .rank-10 .score-points{font-size:11px;color:#c4aab2}
+
+/* Admin logout stays at the bottom of the dashboard */
+.admin-hero{padding-right:20px}
+.admin-footer-actions{margin:22px 0 10px;padding-top:14px;border-top:1px solid #333}
+.admin-footer-actions .admin-logout{position:static;width:100%;margin:0;padding:12px}
