@@ -93,3 +93,103 @@ body {
   font-size: 12px;
   }
   
+
+
+/* NEXZORA PREMIUM ESPORTS EXPERIENCE */
+:root{color-scheme:dark}
+body{background:radial-gradient(circle at 50% -10%,#3b0712 0,#10090c 32%,#070707 72%);font-family:Inter,Arial,sans-serif}
+#app{max-width:720px;margin:0 auto;min-height:100vh;padding-bottom:34px}
+.header{background:rgba(10,10,10,.94);border-bottom:1px solid #5d1424;position:relative}
+.logo{letter-spacing:2px;font-size:28px;text-shadow:0 0 18px rgba(255,23,56,.65)}
+.subtitle{letter-spacing:4px}
+.panel,.hero-live{background:linear-gradient(145deg,#1b1719,#100e0f);border:1px solid #38232a;border-radius:18px;padding:20px;margin:16px 0;box-shadow:0 12px 35px rgba(0,0,0,.28)}
+h1,h2,h3{letter-spacing:.4px}
+h2{font-size:21px;margin-bottom:12px}
+button{border-radius:11px!important;letter-spacing:.6px;transition:transform .15s ease,filter .15s ease}
+button:active{transform:scale(.98)}
+button:not(.secondary){background:linear-gradient(110deg,#a90022,#f01b42);box-shadow:0 7px 22px rgba(229,9,37,.2)}
+.secondary{background:#211b1e;border:1px solid #57303b;color:#f4dce2}
+input{background:#0d0b0c;border:1px solid #453039;border-radius:10px;color:white;padding:14px;margin:8px 0}
+.top-actions{display:flex;justify-content:flex-end;gap:10px;margin:14px 0}
+.icon-action{min-width:76px;background:#1c1719!important;border:1px solid #673041!important;color:#fff;padding:10px 13px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:20px}
+.icon-action span{font-size:9px;letter-spacing:1.3px;color:#e7aab8}
+.welcome-banner,.admin-hero{padding:24px 20px;margin:12px 0 18px;border:1px solid #682036;border-radius:20px;background:linear-gradient(130deg,rgba(92,7,28,.88),rgba(18,12,15,.96) 68%);box-shadow:inset 0 0 35px rgba(225,10,55,.08)}
+.welcome-banner h1,.admin-hero h1{font-size:29px;margin:8px 0}
+.welcome-banner h1 em,.admin-hero h1 em{font-style:normal;color:#ff3458;text-shadow:0 0 15px rgba(255,30,75,.45)}
+.welcome-banner p,.admin-hero p{color:#c8b9be;font-size:13px;line-height:1.6}
+.eyebrow,.section-kicker{display:block;color:#ff718d;font-size:10px;font-weight:800;letter-spacing:2px;margin-bottom:8px}
+.game-tag{display:inline-block;margin-top:15px;padding:7px 11px;border-radius:30px;background:#2b1019;border:1px solid #79253b;color:#ffb3c2;font-size:10px;font-weight:800;letter-spacing:1px}
+.hero-live{border-color:#7c1c34;background:linear-gradient(145deg,#300a16,#151012)}
+.hero-live h2{font-size:23px}
+.live-status{color:#e7c4cc}
+.panel-heading{display:flex;align-items:center;justify-content:space-between}
+.live-dot{font-size:10px;color:#ff526f;border:1px solid #85253b;padding:5px 9px;border-radius:20px}
+.score-row{background:#100d0f;border:1px solid #33242a;border-radius:11px;padding:12px;margin:9px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.score-rank{color:#ff5574;font-weight:900;min-width:28px}
+.score-name{font-weight:700;flex:1}
+.score-points{color:#ffb5c4;font-weight:800}
+.logout-wide{width:100%;margin-top:14px}
+.page-toolbar{display:flex;justify-content:space-between;align-items:center;margin:12px 0}
+.profile-hero{text-align:center;padding:28px 16px 20px}
+.profile-avatar{width:82px;height:82px;border-radius:50%;margin:0 auto 15px;display:grid;place-items:center;font-size:35px;background:linear-gradient(145deg,#64152b,#1b1115);border:2px solid #b52a4c;box-shadow:0 0 25px rgba(229,9,55,.2)}
+.profile-details{margin-top:0}
+.detail-label{color:#e76a84;font-size:10px;letter-spacing:1.6px;font-weight:800;margin:16px 0 7px}
+.detail-value{padding:13px;background:#0d0b0c;border:1px solid #39262d;border-radius:10px;overflow-wrap:anywhere;color:#f4e8eb;font-size:13px}
+.id-value{font-size:11px;color:#b9a8ad}
+.admin-hero{position:relative;padding-right:110px}
+.admin-logout{position:absolute;right:14px;top:16px;padding:9px 12px}
+.admin-nav{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;position:sticky;top:0;z-index:5;padding:8px 0;background:rgba(9,8,9,.96);backdrop-filter:blur(10px)}
+.admin-nav-btn{font-size:9px;padding:12px 5px;background:#1b1719!important;border:1px solid #493039!important;color:#cdbbc1}
+.admin-nav-btn.active{background:linear-gradient(110deg,#8d0926,#e51640)!important;color:white;border-color:#ef3158!important}
+.admin-section[hidden]{display:none!important}
+.admin-stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:14px 0}
+.admin-stat{padding:17px 14px;background:linear-gradient(145deg,#21171b,#100e0f);border:1px solid #452632;border-radius:15px;display:flex;flex-direction:column;gap:7px}
+.admin-stat span{font-size:22px}
+.admin-stat b{font-size:12px;color:#fff;letter-spacing:.6px}
+.admin-stat small{font-size:9px;color:#d66c84;letter-spacing:1.2px}
+.admin-jump{width:100%;margin-top:9px}
+.chat-list{display:grid;gap:9px}
+.inbox-item{width:100%;text-align:left;padding:14px;background:#100d0f!important;border:1px solid #52303a!important;color:#f4e7eb!important}
+.messages{min-height:220px;max-height:48vh;overflow:auto;padding:10px;background:#0c0a0b;border:1px solid #35242a;border-radius:12px;margin:12px 0}
+.message{max-width:88%;padding:10px 12px;margin:8px 0;background:#251a1e;border:1px solid #51303b;border-radius:12px}
+.message.mine{margin-left:auto;background:#581126;border-color:#9c2343}
+.message-name{font-size:9px;color:#ff9caf;letter-spacing:1px;margin-bottom:5px}
+.message-text{font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+#admin-chat{margin-top:12px}
+.footer{color:#806a72;font-size:9px;letter-spacing:2px;padding:25px 10px}
+@media(max-width:390px){.admin-nav-btn{font-size:8px}.welcome-banner h1,.admin-hero h1{font-size:24px}.admin-hero{padding-right:95px}}
+
+
+/* Compact live match and always-visible top 10 leaderboard */
+.hero-live{padding:14px 16px;margin:10px 0 14px;border-radius:14px}
+.hero-live h2{font-size:17px;margin-bottom:6px}
+.hero-live .section-kicker{font-size:9px;margin-bottom:4px}
+.hero-live p{font-size:12px;margin:4px 0}
+.hero-live #live-player{margin:7px 0!important;font-size:11px}
+.hero-live #watch-live{padding:10px 13px;font-size:12px}
+#score-list{display:block}
+#score-list .score-row{display:flex;align-items:center;gap:9px;margin:7px 0;padding:10px 12px;border-radius:11px;min-height:42px}
+#score-list .score-rank{font-weight:900;min-width:30px}
+#score-list .score-name{font-weight:700}
+#score-list .score-points{font-weight:800}
+#score-list .rank-1{min-height:76px;padding:17px 15px;margin:11px 0;background:linear-gradient(110deg,#482b12,#21170f);border:1px solid #c18b39;box-shadow:0 0 18px rgba(193,139,57,.14)}
+#score-list .rank-1 .score-rank{font-size:24px;color:#ffd36b;min-width:38px}
+#score-list .rank-1 .score-name{font-size:18px;color:#ffe7ad}
+#score-list .rank-1 .score-points{font-size:15px;color:#ffd36b}
+#score-list .rank-2{min-height:61px;padding:13px;background:linear-gradient(110deg,#28282b,#171719);border:1px solid #777}
+#score-list .rank-2 .score-rank{font-size:19px;color:#dedee4}
+#score-list .rank-2 .score-name{font-size:15px}
+#score-list .rank-2 .score-points{font-size:13px}
+#score-list .rank-3{min-height:55px;padding:11px;background:linear-gradient(110deg,#332016,#1b1310);border:1px solid #805337}
+#score-list .rank-3 .score-rank{font-size:17px;color:#d99568}
+#score-list .rank-3 .score-name{font-size:14px}
+#score-list .rank-3 .score-points{font-size:12px}
+#score-list .rank-4,#score-list .rank-5,#score-list .rank-6,#score-list .rank-7,#score-list .rank-8,#score-list .rank-9,#score-list .rank-10{min-height:38px;padding:8px 11px;background:#100d0f;border:1px solid #302329}
+#score-list .rank-4 .score-rank,#score-list .rank-5 .score-rank,#score-list .rank-6 .score-rank,#score-list .rank-7 .score-rank,#score-list .rank-8 .score-rank,#score-list .rank-9 .score-rank,#score-list .rank-10 .score-rank{font-size:12px;color:#a99ba0}
+#score-list .rank-4 .score-name,#score-list .rank-5 .score-name,#score-list .rank-6 .score-name,#score-list .rank-7 .score-name,#score-list .rank-8 .score-name,#score-list .rank-9 .score-name,#score-list .rank-10 .score-name{font-size:12px;font-weight:600}
+#score-list .rank-4 .score-points,#score-list .rank-5 .score-points,#score-list .rank-6 .score-points,#score-list .rank-7 .score-points,#score-list .rank-8 .score-points,#score-list .rank-9 .score-points,#score-list .rank-10 .score-points{font-size:11px;color:#c4aab2}
+
+/* Admin logout stays at the bottom of the dashboard */
+.admin-hero{padding-right:20px}
+.admin-footer-actions{margin:22px 0 10px;padding-top:14px;border-top:1px solid #333}
+.admin-footer-actions .admin-logout{position:static;width:100%;margin:0;padding:12px}
