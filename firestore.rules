@@ -1,0 +1,82 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && request.auth.uid == '69EkQfAkuShSM5Fe5pCEs8nOv0l2';
+    }
+
+    function ownsChat(chatId) {
+      return signedIn()
+        && (
+          chatId == request.auth.uid
+          || get(/databases/$(database)/documents/chats/$(chatId)).data.playerUid == request.auth.uid
+        );
+    }
+
+    match /users/{userId} {
+      allow get: if isAdmin() || (signedIn() && request.auth.uid == userId);
+      allow list: if isAdmin();
+      allow create: if isAdmin()
+        || (signedIn() && request.auth.uid == userId
+          && !request.resource.data.keys().hasAny(['role']));
+      allow update: if isAdmin()
+        || (signedIn() && request.auth.uid == userId
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
+      allow delete: if isAdmin();
+    }
+
+    match /leaderboard/{scoreId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // A player may create several private conversation threads.
+    match /chats/{chatId} {
+      allow create: if signedIn()
+        && request.resource.data.playerUid == request.auth.uid
+        && request.resource.data.playerUsername is string;
+
+      allow get: if isAdmin() || ownsChat(chatId);
+      allow list: if isAdmin()
+        || (signedIn() && resource.data.playerUid == request.auth.uid);
+
+      allow update: if isAdmin()
+        || (
+          ownsChat(chatId)
+          && request.resource.data.playerUid == resource.data.playerUid
+        );
+
+      allow delete: if isAdmin() || ownsChat(chatId);
+
+      match /messages/{messageId} {
+        allow read: if isAdmin() || ownsChat(chatId);
+
+        allow create: if (isAdmin() || ownsChat(chatId))
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() <= 2000
+          && (
+            request.resource.data.text.size() > 0
+            || (
+              request.resource.data.imageUrl is string
+              && request.resource.data.imageUrl.size() > 0
+            )
+          );
+
+        allow update: if isAdmin();
+        allow delete: if isAdmin() || ownsChat(chatId);
+      }
+    }
+  }
+}
