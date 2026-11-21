@@ -990,8 +990,12 @@ async function ensurePlayerProfile(user) {
   const profileRef = doc(db, 'users', user.uid);
   const profileSnap = await getDoc(profileRef);
   const existing = profileSnap.exists() ? profileSnap.data() : {};
-  const fallbackName = (user.email || 'player').split('@')[0]
-    .replace(/[^a-zA-Z0-9_]/g, '').slice(0, 14) + user.uid.slice(-4);
+  const emailName = (user.email || 'player').split('@')[0]
+    .replace(/[^a-zA-Z0-9_]/g, '');
+  const isNewUsernameAccount = (user.email || '').endsWith('@players.nexzora.app');
+  const fallbackName = isNewUsernameAccount
+    ? emailName.slice(0, 20)
+    : (emailName.slice(0, 14) + user.uid.slice(-4));
   const username = existing.username || user.displayName || fallbackName;
 
   if (user.displayName !== username) {
