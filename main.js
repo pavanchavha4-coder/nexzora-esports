@@ -347,9 +347,9 @@ function showPlayer() {
   `);
 
   document.getElementById('logout').onclick = () => signOut(auth);
-  document.getElementById('chat').onclick = () => openPlayerChat();
+  document.getElementById('chat').onclick = showPlayerInbox;
   document.getElementById('profile').onclick = showProfile;
-  document.getElementById('join-now').onclick = () => openPlayerChat('I want to join the Free Fire tournament. Please share the details.');
+  document.getElementById('join-now').onclick = async () => { try { const id = await createPlayerChatThread('I want to join the Free Fire tournament. Please share the details.'); openPlayerChat(id); } catch (error) { alert('Chat nahi khula: ' + error.message); } };
 
   listenToScores();
 }
@@ -380,7 +380,7 @@ function showProfile() {
     currentUser.displayName || (currentUser.email || 'player').split('@')[0];
   document.getElementById('profile-id').textContent = currentUser.uid;
   document.getElementById('back').onclick = showPlayer;
-  document.getElementById('profile-chat').onclick = () => openPlayerChat();
+  document.getElementById('profile-chat').onclick = showPlayerInbox;
   document.getElementById('logout').onclick = () => signOut(auth);
 }
 
@@ -653,32 +653,34 @@ function showAdmin() {
 
   listenToAdminScores();
 
-  // Every registered player appears, even before sending the first chat message.
-  unsubscribePlayers = onSnapshot(
-    collection(db, 'users'),
+  // Instagram-style admin inbox: every player's conversation thread appears here.
+  unsubscribeChats = onSnapshot(
+    collection(db, 'chats'),
     snapshot => {
       const list = document.getElementById('chat-list');
       if (!list) return;
       list.innerHTML = '';
-      if (snapshot.empty) {
-        list.textContent = 'No players have registered yet.';
-        return;
-      }
-      snapshot.forEach(playerDoc => {
-        if (playerDoc.id === ADMIN_UID) return;
-        const data = playerDoc.data();
-        const username = data.username || 'Player';
+      const threads = snapshot.docs.map(d => ({ id:d.id, ...d.data() }))
+        .sort((a,b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
+      if (!threads.length) { list.textContent = 'No player conversations yet.'; return; }
+      threads.forEach(thread => {
+        const playerUid = thread.playerUid || thread.id;
+        if (playerUid === ADMIN_UID) return;
         const button = document.createElement('button');
         button.className = 'inbox-item';
-        button.textContent = '👤 ' + username + ' · Open private chat';
-        button.onclick = () => openAdminChat(playerDoc.id, username);
+        const title = document.createElement('strong');
+        title.textContent = thread.playerUsername || 'Player';
+        const preview = document.createElement('span');
+        preview.textContent = thread.lastMessage || 'Start conversation';
+        button.append(title, preview);
+        button.onclick = () => openAdminChat(thread.id, thread.playerUsername || 'Player', playerUid);
         list.appendChild(button);
       });
     },
     error => {
-      console.error('Player list error:', error);
+      console.error('Chat inbox error:', error);
       const list = document.getElementById('chat-list');
-      if (list) list.textContent = 'Players load nahi hue. Firestore Rules mein admin ko users read permission chahiye.';
+      if (list) list.textContent = 'Chats load nahi hue. Firestore Rules check karein.';
     }
   );
 }
@@ -804,22 +806,51 @@ async function deleteChatImages(chatId) {
   await Promise.all(files.items.map(item => deleteObject(item)));
 }
 
-async function uploadChatImage(file, chatId) {
+async async function uploadChatImage(file, playerUid) {
   if (!file) return '';
   if (!file.type.startsWith('image/')) throw new Error('Sirf image upload kar sakte ho.');
   if (file.size > 5 * 1024 * 1024) throw new Error('Image 5 MB se chhoti honi chahiye.');
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const target = storageRef(storage, `chat-uploads/${chatId}/${Date.now()}-${safeName}`);
+  // Keep the player UID as the Storage folder so existing Storage permissions remain valid.
+  const target = storageRef(storage, `chat-uploads/${playerUid}/${Date.now()}-${safeName}`);
   const uploaded = await uploadBytes(target, file, { contentType: file.type });
   return await getDownloadURL(uploaded.ref);
 }
 
-async function sendChatMessage(chatId, message, isAdmin = false, imageUrl = '') {
-  const cleanMessage = message.trim();
-  if (!cleanMessage && !imageUrl) return;
+async function createPlayerChatThread(firstMessage = '') {
+  const threadRef = doc(collection(db, 'chats'));
+  const username = currentUser.displayName || (currentUser.email || 'Player').split('@')[0];
+  await setDoc(threadRef, {
+    playerUid: currentUser.uid,
+    playerUsername: username,
+    lastMessage: firstMessage || 'New conversation',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  if (firstMessage) {
+    await addDoc(collection(db, 'chats', threadRef.id, 'messages'), {
+      senderUid: currentUser.uid,
+      senderName: username,
+      text: firstMessage,
+      imageUrl: '',
+      system: false,
+      createdAt: serverTimestamp()
+    });
+  }
+  return threadRef.id;
+}
 
-  await setDoc(doc(db, 'chats', chatId), {
-    playerUid: chatId,
+async function sendChatMessage(threadId, message, isAdmin = false, imageUrl = '', playerUid = '') {
+  const cleanMessage = (message || '').trim();
+  if (!cleanMessage && !imageUrl) return;
+  let ownerUid = playerUid;
+  if (!ownerUid) {
+    const threadSnap = await getDoc(doc(db, 'chats', threadId));
+    ownerUid = threadSnap.exists() ? (threadSnap.data().playerUid || threadId) : threadId;
+  }
+  const threadRef = doc(db, 'chats', threadId);
+  await setDoc(threadRef, {
+    playerUid: ownerUid,
     playerUsername: isAdmin
       ? (document.querySelector('.chat-title')?.textContent || 'Player')
       : (currentUser.displayName || 'Player'),
@@ -827,9 +858,9 @@ async function sendChatMessage(chatId, message, isAdmin = false, imageUrl = '') 
     updatedAt: serverTimestamp()
   }, { merge: true });
 
-  await addDoc(collection(db, 'chats', chatId, 'messages'), {
+  await addDoc(collection(db, 'chats', threadId, 'messages'), {
     senderUid: currentUser.uid,
-    senderName: isAdmin ? 'NEXZORA ADMIN' : 'PLAYER',
+    senderName: isAdmin ? 'NEXZORA ADMIN' : (currentUser.displayName || 'PLAYER'),
     text: cleanMessage,
     imageUrl,
     system: false,
@@ -837,33 +868,21 @@ async function sendChatMessage(chatId, message, isAdmin = false, imageUrl = '') 
   });
 }
 
-function listenToMessages(chatId) {
+function listenToMessages(threadId) {
   if (unsubscribeMessages) unsubscribeMessages();
-
   unsubscribeMessages = onSnapshot(
-    query(
-      collection(db, 'chats', chatId, 'messages'),
-      orderBy('createdAt', 'asc')
-    ),
+    query(collection(db, 'chats', threadId, 'messages'), orderBy('createdAt', 'asc')),
     snapshot => {
       const area = document.getElementById('messages');
       if (!area) return;
-
       area.innerHTML = '';
-
       snapshot.forEach(item => {
         const data = item.data();
-
         const message = document.createElement('div');
-        message.className =
-          'message' +
-          (data.senderUid === currentUser.uid ? ' mine' : '');
-
+        message.className = 'message' + (data.senderUid === currentUser.uid ? ' mine' : '');
         const name = document.createElement('div');
         name.className = 'message-name';
-        name.textContent = data.senderName ||
-          (data.system ? 'SYSTEM' : 'MESSAGE');
-
+        name.textContent = data.senderName || (data.system ? 'SYSTEM' : 'MESSAGE');
         const text = document.createElement('div');
         text.className = 'message-text';
         text.textContent = data.text || '';
@@ -880,22 +899,72 @@ function listenToMessages(chatId) {
         }
         area.appendChild(message);
       });
-
       area.scrollTop = area.scrollHeight;
     },
     error => {
       console.error(error);
       const area = document.getElementById('messages');
-      if (area) area.textContent = 'Messages load nahi hue. Rules check karein.';
+      if (area) area.textContent = 'Messages load nahi hue. Firestore Rules check karein.';
     }
   );
 }
 
-// PLAYER CHAT
-async function openPlayerChat(firstMessage = '') {
+// PLAYER: Instagram-style conversation inbox
+function showPlayerInbox() {
   stopListeners();
+  document.body.classList.remove('chat-mode');
+  shell(`
+    <section class="inbox-page">
+      <header class="inbox-header">
+        <button class="chat-back" id="inbox-home">‹</button>
+        <div><div class="chat-title">Messages</div><div class="chat-subtitle">NEXZORA PRIVATE SUPPORT</div></div>
+        <button id="new-player-chat" class="inbox-new">＋</button>
+      </header>
+      <div class="inbox-heading">YOUR CONVERSATIONS</div>
+      <div id="player-chat-list" class="chat-list">Loading chats...</div>
+    </section>
+  `);
+  document.getElementById('inbox-home').onclick = showPlayer;
+  document.getElementById('new-player-chat').onclick = async () => {
+    try {
+      const threadId = await createPlayerChatThread();
+      openPlayerChat(threadId);
+    } catch (error) { alert('New chat nahi bana: ' + error.message); }
+  };
+  unsubscribeChats = onSnapshot(
+    query(collection(db, 'chats'), where('playerUid', '==', currentUser.uid)),
+    snapshot => {
+      const list = document.getElementById('player-chat-list');
+      if (!list) return;
+      list.innerHTML = '';
+      const threads = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      threads.sort((a,b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
+      if (!threads.length) {
+        list.textContent = 'Abhi koi chat nahi hai. ＋ dabakar new chat shuru karo.';
+        return;
+      }
+      threads.forEach(thread => {
+        const button = document.createElement('button');
+        button.className = 'inbox-item';
+        const title = document.createElement('strong');
+        title.textContent = 'NEXZORA SUPPORT';
+        const preview = document.createElement('span');
+        preview.textContent = thread.lastMessage || 'Start conversation';
+        button.append(title, preview);
+        button.onclick = () => openPlayerChat(thread.id);
+        list.appendChild(button);
+      });
+    },
+    error => {
+      console.error(error);
+      const list = document.getElementById('player-chat-list');
+      if (list) list.textContent = 'Chat list load nahi hui. Firestore Rules check karo.';
+    }
+  );
+}
 
-  const chatId = currentUser.uid;
+function openPlayerChat(threadId, firstMessage = '') {
+  stopListeners();
   document.body.classList.add('chat-mode');
   shell(`
     <section class="chat-screen">
@@ -907,13 +976,12 @@ async function openPlayerChat(firstMessage = '') {
       <form class="chat-composer" id="player-chat-form">
         <input id="chat-image-file" type="file" accept="image/*" hidden>
         <button type="button" class="chat-attach" id="attach-image" aria-label="Upload image">＋</button>
-        <input id="chat-input" maxlength="500" placeholder="Message..." autocomplete="off">
+        <input id="chat-input" maxlength="2000" placeholder="Message..." autocomplete="off">
         <button type="submit" class="chat-send" aria-label="Send">➤</button>
       </form>
     </section>
   `);
-
-  listenToMessages(chatId);
+  listenToMessages(threadId);
   document.getElementById('attach-image').onclick = () => document.getElementById('chat-image-file').click();
   document.getElementById('player-chat-form').onsubmit = async event => {
     event.preventDefault();
@@ -925,47 +993,32 @@ async function openPlayerChat(firstMessage = '') {
     const sendButton = document.querySelector('.chat-send');
     sendButton.disabled = true;
     try {
-      const imageUrl = file ? await uploadChatImage(file, chatId) : '';
-      await sendChatMessage(chatId, message, false, imageUrl);
+      const imageUrl = file ? await uploadChatImage(file, currentUser.uid) : '';
+      await sendChatMessage(threadId, message, false, imageUrl, currentUser.uid);
       input.value = '';
       fileInput.value = '';
-    } catch (error) {
-      alert('Message/image send nahi hua: ' + error.message);
-    } finally {
-      sendButton.disabled = false;
-    }
+    } catch (error) { alert('Message/image send nahi hua: ' + error.message); }
+    finally { sendButton.disabled = false; }
   };
-
   document.getElementById('exit-chat').onclick = () => {
-    if (unsubscribeMessages) {
-      unsubscribeMessages();
-      unsubscribeMessages = null;
-    }
+    if (unsubscribeMessages) unsubscribeMessages();
+    unsubscribeMessages = null;
     document.body.classList.remove('chat-mode');
-    showPlayer();
+    showPlayerInbox();
   };
-
-  if (firstMessage) {
-    const input = document.getElementById('chat-input');
-    input.value = firstMessage;
-  }
+  if (firstMessage) document.getElementById('chat-input').value = firstMessage;
 }
 
-function openAdminChat(chatId, username = 'Player') {
+function openAdminChat(threadId, username = 'Player', playerUid = '') {
   const holder = document.getElementById('admin-chat');
   if (!holder) return;
   document.body.classList.add('chat-mode');
-
-  if (unsubscribeMessages) {
-    unsubscribeMessages();
-    unsubscribeMessages = null;
-  }
-
+  if (unsubscribeMessages) unsubscribeMessages();
   holder.innerHTML = `
     <section class="chat-screen">
       <header class="chat-topbar">
         <button class="chat-back" id="close-admin-chat" aria-label="Back">‹</button>
-        <div><div class="chat-title">PLAYER CONVERSATION</div><div class="chat-subtitle">NEXZORA ADMIN INBOX</div></div>
+        <div><div class="chat-title"></div><div class="chat-subtitle">NEXZORA ADMIN INBOX</div></div>
       </header>
       <div id="messages" class="messages"></div>
       <div class="admin-auto-wrap">
@@ -980,19 +1033,17 @@ function openAdminChat(chatId, username = 'Player') {
       <form class="chat-composer" id="admin-chat-form">
         <input id="admin-image-file" type="file" accept="image/*" hidden>
         <button type="button" class="chat-attach" id="admin-attach-image" aria-label="Upload image">＋</button>
-        <input id="admin-chat-input" maxlength="500" placeholder="Reply..." autocomplete="off">
+        <input id="admin-chat-input" maxlength="2000" placeholder="Reply..." autocomplete="off">
         <button type="submit" class="chat-send" aria-label="Send">➤</button>
       </form>
     </section>
   `;
-
-  const chatTitle = holder.querySelector('.chat-title');
-  if (chatTitle) chatTitle.textContent = username;
-  listenToMessages(chatId);
+  holder.querySelector('.chat-title').textContent = username;
+  listenToMessages(threadId);
   document.getElementById('admin-attach-image').onclick = () => document.getElementById('admin-image-file').click();
   document.querySelectorAll('[data-auto]').forEach(button => {
     button.onclick = async () => {
-      try { await sendChatMessage(chatId, button.dataset.auto, true); }
+      try { await sendChatMessage(threadId, button.dataset.auto, true, '', playerUid); }
       catch (error) { alert('Auto message send nahi hua: ' + error.message); }
     };
   });
@@ -1006,51 +1057,58 @@ function openAdminChat(chatId, username = 'Player') {
     const sendButton = document.querySelector('.chat-send');
     sendButton.disabled = true;
     try {
-      const imageUrl = file ? await uploadChatImage(file, chatId) : '';
-      await sendChatMessage(chatId, message, true, imageUrl);
+      const imageUrl = file ? await uploadChatImage(file, playerUid) : '';
+      await sendChatMessage(threadId, message, true, imageUrl, playerUid);
       input.value = '';
       fileInput.value = '';
-    } catch (error) {
-      alert('Reply/image send nahi hua: ' + error.message);
-    } finally {
-      sendButton.disabled = false;
-    }
+    } catch (error) { alert('Reply/image send nahi hua: ' + error.message); }
+    finally { sendButton.disabled = false; }
   };
-
   document.getElementById('close-admin-chat').onclick = () => {
-    if (unsubscribeMessages) {
-      unsubscribeMessages();
-      unsubscribeMessages = null;
-    }
+    if (unsubscribeMessages) unsubscribeMessages();
+    unsubscribeMessages = null;
     holder.innerHTML = '';
     document.body.classList.remove('chat-mode');
   };
 }
 
-// Automatically create/update a Firestore profile for every player login.
+// Automatically create/update a Firestore profile and ensure the player is visible in Admin inbox.
 async function ensurePlayerProfile(user) {
   const profileRef = doc(db, 'users', user.uid);
   const profileSnap = await getDoc(profileRef);
   const existing = profileSnap.exists() ? profileSnap.data() : {};
-  const emailName = (user.email || 'player').split('@')[0]
-    .replace(/[^a-zA-Z0-9_]/g, '');
+  const emailName = (user.email || 'player').split('@')[0].replace(/[^a-zA-Z0-9_]/g, '');
   const isNewUsernameAccount = (user.email || '').endsWith('@players.nexzora.app');
-  const fallbackName = isNewUsernameAccount
-    ? emailName.slice(0, 20)
-    : (emailName.slice(0, 14) + user.uid.slice(-4));
+  const fallbackName = isNewUsernameAccount ? emailName.slice(0,20) : (emailName.slice(0,14) + user.uid.slice(-4));
   const username = existing.username || user.displayName || fallbackName;
-
-  if (user.displayName !== username) {
-    await updateProfile(user, { displayName: username });
-  }
+  if (user.displayName !== username) await updateProfile(user, { displayName: username });
   await setDoc(profileRef, {
-    uid: user.uid,
-    username,
-    usernameLower: username.toLowerCase(),
-    email: user.email || existing.email || '',
-    createdAt: existing.createdAt || serverTimestamp(),
-    lastLoginAt: serverTimestamp()
-  }, { merge: true });
+    uid:user.uid, username, usernameLower:username.toLowerCase(),
+    email:user.email || existing.email || '',
+    createdAt:existing.createdAt || serverTimestamp(),
+    lastLoginAt:serverTimestamp()
+  }, { merge:true });
+
+  const owned = await getDocs(query(collection(db,'chats'), where('playerUid','==',user.uid)));
+  if (owned.empty) {
+    // Preserve the original one-chat-per-player thread as the first conversation.
+    const legacyRef = doc(db,'chats',user.uid);
+    const legacySnap = await getDoc(legacyRef);
+    if (legacySnap.exists()) {
+      await setDoc(legacyRef, {
+        playerUid:user.uid, playerUsername:username,
+        lastMessage:legacySnap.data().lastMessage || 'Conversation',
+        updatedAt:legacySnap.data().updatedAt || serverTimestamp()
+      }, { merge:true });
+    } else {
+      const firstThread = doc(collection(db,'chats'));
+      await setDoc(firstThread, {
+        playerUid:user.uid, playerUsername:username,
+        lastMessage:'You are connected to NEXZORA Support',
+        createdAt:serverTimestamp(), updatedAt:serverTimestamp()
+      });
+    }
+  }
 }
 
 // AUTH ROUTING
@@ -1072,3 +1130,17 @@ onAuthStateChanged(auth, async user => {
     showPlayer();
   }
 });
+
+
+/* Multi-chat inbox */
+.inbox-page{min-height:100dvh;background:#09090b;color:#fff}
+.inbox-header{display:flex;align-items:center;gap:14px;padding:18px 14px;border-bottom:1px solid #29292e}
+.inbox-header .chat-title{font-size:22px;font-weight:900}
+.inbox-header .chat-back{width:42px;height:42px;padding:0;font-size:28px;background:#19191d}
+.inbox-new{margin-left:auto;width:44px;height:44px;padding:0;font-size:27px}
+.inbox-heading{padding:18px 16px 8px;color:#aaa;font-size:11px;letter-spacing:2px;font-weight:800}
+.chat-list{display:flex;flex-direction:column;gap:2px}
+.chat-list .inbox-item{width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:17px 16px;margin:0;border:0;border-bottom:1px solid #29292e;border-radius:0;background:#101013}
+.chat-list .inbox-item strong{font-size:15px;color:#fff}
+.chat-list .inbox-item span{font-size:13px;color:#aaa;font-weight:400;letter-spacing:0}
+.chat-mode #app{padding:0}
