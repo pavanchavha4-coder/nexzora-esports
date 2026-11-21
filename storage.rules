@@ -1,0 +1,20 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /chat-uploads/{chatId}/{fileName} {
+      // Only the player who owns the chat and the NEXZORA admin can view images.
+      allow read: if request.auth != null
+        && (request.auth.uid == chatId
+          || request.auth.uid == '69EkQfAkuShSM5Fe5pCEs8nOv0l2');
+
+      // Allow authenticated chat participants to upload image files up to 5 MB.
+      allow write: if request.auth != null
+        && (request.auth.uid == chatId
+          || request.auth.uid == '69EkQfAkuShSM5Fe5pCEs8nOv0l2')
+        && request.resource != null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}
