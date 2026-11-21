@@ -809,7 +809,7 @@ async function deleteChatImages(chatId) {
   await Promise.all(files.items.map(item => deleteObject(item)));
 }
 
-async async function uploadChatImage(file, playerUid) {
+async function uploadChatImage(file, playerUid) {
   if (!file) return '';
   if (!file.type.startsWith('image/')) throw new Error('Sirf image upload kar sakte ho.');
   if (file.size > 5 * 1024 * 1024) throw new Error('Image 5 MB se chhoti honi chahiye.');
