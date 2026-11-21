@@ -839,7 +839,11 @@ async function openPlayerChat(firstMessage = '') {
       unsubscribeMessages = null;
     }
     try {
-      await deleteChatImages(chatId);
+      try {
+        await deleteChatImages(chatId);
+      } catch (storageError) {
+        console.warn('Chat image cleanup skipped:', storageError);
+      }
       const messages = await getDocs(collection(db, 'chats', chatId, 'messages'));
       const batch = writeBatch(db);
       messages.forEach(item => batch.delete(item.ref));
