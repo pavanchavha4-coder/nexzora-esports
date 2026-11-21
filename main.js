@@ -7,12 +7,15 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   onAuthStateChanged,
-  signOut
+  signOut,
+  updateProfile
 } from 'firebase/auth';
 
 import {
   getFirestore,
   doc,
+  getDoc,
+  where,
   setDoc,
   collection,
   addDoc,
@@ -54,6 +57,7 @@ const app = document.getElementById('app');
 let currentUser = null;
 let unsubscribeMessages = null;
 let unsubscribeChats = null;
+let unsubscribePlayers = null;
 let unsubscribeLive = null;
 let unsubscribeScores = null;
 let deletingChat = false;
@@ -167,11 +171,13 @@ function shell(content) {
 function stopListeners() {
   if (unsubscribeMessages) unsubscribeMessages();
   if (unsubscribeChats) unsubscribeChats();
+  if (unsubscribePlayers) unsubscribePlayers();
   if (unsubscribeLive) unsubscribeLive();
   if (unsubscribeScores) unsubscribeScores();
 
   unsubscribeMessages = null;
   unsubscribeChats = null;
+  unsubscribePlayers = null;
   unsubscribeLive = null;
   unsubscribeScores = null;
 }
@@ -182,40 +188,112 @@ function showLogin() {
 
   shell(`
     <div class="panel">
-      <h2>PLAYER LOGIN</h2>
-      <input id="email" type="email" placeholder="Email address">
-      <input id="password" type="password" placeholder="Password">
+      <h2 id="auth-heading">PLAYER LOGIN</h2>
+      <input id="username" type="text" maxlength="20" placeholder="Username" autocomplete="username">
+      <input id="register-email" type="email" placeholder="Email (registration only)" autocomplete="email" hidden>
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password">
       <button id="login">LOGIN</button>
       <button id="register" class="secondary">CREATE NEW ACCOUNT</button>
+      <button id="cancel-register" class="secondary" hidden>BACK TO LOGIN</button>
+      <p class="small">Player login username se hoga. Email sirf account banate waqt internally use hoga.</p>
     </div>
   `);
 
-  document.getElementById('login').onclick = async () => {
+  let registerMode = false;
+  const usernameInput = document.getElementById('username');
+  const emailInput = document.getElementById('register-email');
+  const passwordInput = document.getElementById('password');
+  const loginButton = document.getElementById('login');
+  const registerButton = document.getElementById('register');
+  const cancelButton = document.getElementById('cancel-register');
+
+  loginButton.onclick = async () => {
     try {
-      await signInWithEmailAndPassword(
-        auth,
-        document.getElementById('email').value.trim(),
-        document.getElementById('password').value
-      );
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+      if (!username || !password) {
+        alert('Username aur password enter karo.');
+        return;
+      }
+      if (username.includes('@')) {
+        await signInWithEmailAndPassword(auth, username, password);
+        return;
+      }
+      const matches = await getDocs(query(
+        collection(db, 'users'),
+        where('usernameLower', '==', username.toLowerCase())
+      ));
+      if (matches.empty) {
+        alert('Username nahi mila. Username check karo ya naya account banao.');
+        return;
+      }
+      const player = matches.docs[0].data();
+      if (!player.email) {
+        alert('Is account ka login record incomplete hai. Admin se contact karo.');
+        return;
+      }
+      await signInWithEmailAndPassword(auth, player.email, password);
     } catch (error) {
       alert(error.message);
     }
   };
 
-  document.getElementById('register').onclick = async () => {
+  registerButton.onclick = async () => {
+    if (!registerMode) {
+      registerMode = true;
+      document.getElementById('auth-heading').textContent = 'CREATE PLAYER ACCOUNT';
+      emailInput.hidden = false;
+      loginButton.hidden = true;
+      cancelButton.hidden = false;
+      registerButton.textContent = 'CREATE ACCOUNT';
+      passwordInput.autocomplete = 'new-password';
+      return;
+    }
     try {
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-
-      if (!email || password.length < 6) {
-        alert('Email aur minimum 6 character password enter karo.');
+      const username = usernameInput.value.trim();
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+        alert('Username 3-20 characters ka hona chahiye. Sirf letters, numbers aur _ use karo.');
         return;
       }
-
-      await createUserWithEmailAndPassword(auth, email, password);
+      if (!email || password.length < 6) {
+        alert('Valid email aur minimum 6 character password enter karo.');
+        return;
+      }
+      const existing = await getDocs(query(
+        collection(db, 'users'),
+        where('usernameLower', '==', username.toLowerCase())
+      ));
+      if (!existing.empty) {
+        alert('Ye username pehle se use ho raha hai. Dusra username choose karo.');
+        return;
+      }
+      const credential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(credential.user, { displayName: username });
+      await setDoc(doc(db, 'users', credential.user.uid), {
+        uid: credential.user.uid,
+        username,
+        usernameLower: username.toLowerCase(),
+        email,
+        createdAt: serverTimestamp(),
+        lastLoginAt: serverTimestamp()
+      }, { merge: true });
+      alert('Account ban gaya! Ab username se login kar sakte ho.');
     } catch (error) {
       alert(error.message);
     }
+  };
+
+  cancelButton.onclick = () => {
+    registerMode = false;
+    document.getElementById('auth-heading').textContent = 'PLAYER LOGIN';
+    emailInput.hidden = true;
+    emailInput.value = '';
+    loginButton.hidden = false;
+    cancelButton.hidden = true;
+    registerButton.textContent = 'CREATE NEW ACCOUNT';
+    passwordInput.autocomplete = 'current-password';
   };
 }
 
@@ -272,8 +350,8 @@ function showProfile() {
       <p class="small">Your account details and player identity</p>
     </section>
     <div class="panel profile-details">
-      <div class="detail-label">REGISTERED EMAIL</div>
-      <div class="detail-value" id="profile-email"></div>
+      <div class="detail-label">USERNAME</div>
+      <div class="detail-value" id="profile-username"></div>
       <div class="detail-label">PLAYER ID</div>
       <div class="detail-value id-value" id="profile-id"></div>
       <button class="game-button" id="profile-chat">💬 CONTACT NEXZORA</button>
@@ -281,8 +359,8 @@ function showProfile() {
     </div>
   `);
 
-  document.getElementById('profile-email').textContent =
-    currentUser.email || 'Not available';
+  document.getElementById('profile-username').textContent =
+    currentUser.displayName || (currentUser.email || 'player').split('@')[0];
   document.getElementById('profile-id').textContent = currentUser.uid;
   document.getElementById('back').onclick = showPlayer;
   document.getElementById('profile-chat').onclick = () => openPlayerChat();
@@ -558,27 +636,33 @@ function showAdmin() {
 
   listenToAdminScores();
 
-  unsubscribeChats = onSnapshot(
-    collection(db, 'chats'),
+  // Every registered player appears, even before sending the first chat message.
+  unsubscribePlayers = onSnapshot(
+    collection(db, 'users'),
     snapshot => {
       const list = document.getElementById('chat-list');
       if (!list) return;
       list.innerHTML = '';
       if (snapshot.empty) {
-        list.textContent = 'No player messages yet.';
+        list.textContent = 'No players have registered yet.';
         return;
       }
-      snapshot.forEach(chat => {
-        const data = chat.data();
+      snapshot.forEach(playerDoc => {
+        if (playerDoc.id === ADMIN_UID) return;
+        const data = playerDoc.data();
+        const username = data.username || 'Player';
         const button = document.createElement('button');
         button.className = 'inbox-item';
-        button.textContent = (data.playerEmail || 'Player') + ' — ' +
-          (data.lastMessage || 'Open conversation');
-        button.onclick = () => openAdminChat(chat.id);
+        button.textContent = '👤 ' + username + ' · Open private chat';
+        button.onclick = () => openAdminChat(playerDoc.id, username);
         list.appendChild(button);
       });
     },
-    error => console.error(error)
+    error => {
+      console.error('Player list error:', error);
+      const list = document.getElementById('chat-list');
+      if (list) list.textContent = 'Players load nahi hue. Firestore Rules mein admin ko users read permission chahiye.';
+    }
   );
 }
 // ADMIN SAVE LIVE MATCH
@@ -691,7 +775,7 @@ function listenToAdminScores() {
 async function updateChatInfo(chatId, message) {
   await setDoc(doc(db, 'chats', chatId), {
     playerUid: chatId,
-    playerEmail: currentUser.email || 'Player',
+    playerUsername: currentUser.displayName || 'Player',
     lastMessage: message || '📷 Image',
     updatedAt: serverTimestamp()
   }, { merge: true });
@@ -719,7 +803,9 @@ async function sendChatMessage(chatId, message, isAdmin = false, imageUrl = '') 
 
   await setDoc(doc(db, 'chats', chatId), {
     playerUid: chatId,
-    ...(isAdmin ? {} : { playerEmail: currentUser.email || 'Player' }),
+    playerUsername: isAdmin
+      ? (document.querySelector('.chat-title')?.textContent || 'Player')
+      : (currentUser.displayName || 'Player'),
     lastMessage: cleanMessage || '📷 Image',
     updatedAt: serverTimestamp()
   }, { merge: true });
@@ -833,25 +919,10 @@ async function openPlayerChat(firstMessage = '') {
     }
   };
 
-  document.getElementById('exit-chat').onclick = async () => {
+  document.getElementById('exit-chat').onclick = () => {
     if (unsubscribeMessages) {
       unsubscribeMessages();
       unsubscribeMessages = null;
-    }
-    try {
-      try {
-        await deleteChatImages(chatId);
-      } catch (storageError) {
-        console.warn('Chat image cleanup skipped:', storageError);
-      }
-      const messages = await getDocs(collection(db, 'chats', chatId, 'messages'));
-      const batch = writeBatch(db);
-      messages.forEach(item => batch.delete(item.ref));
-      batch.delete(doc(db, 'chats', chatId));
-      await batch.commit();
-    } catch (error) {
-      console.error('Chat cleanup failed:', error);
-      alert('Chat clear nahi ho payi. Firestore rules check karein.');
     }
     document.body.classList.remove('chat-mode');
     showPlayer();
@@ -863,7 +934,7 @@ async function openPlayerChat(firstMessage = '') {
   }
 }
 
-function openAdminChat(chatId) {
+function openAdminChat(chatId, username = 'Player') {
   const holder = document.getElementById('admin-chat');
   if (!holder) return;
   document.body.classList.add('chat-mode');
@@ -898,6 +969,8 @@ function openAdminChat(chatId) {
     </section>
   `;
 
+  const chatTitle = holder.querySelector('.chat-title');
+  if (chatTitle) chatTitle.textContent = username;
   listenToMessages(chatId);
   document.getElementById('admin-attach-image').onclick = () => document.getElementById('admin-image-file').click();
   document.querySelectorAll('[data-auto]').forEach(button => {
@@ -937,18 +1010,44 @@ function openAdminChat(chatId) {
   };
 }
 
+// Automatically create/update a Firestore profile for every player login.
+async function ensurePlayerProfile(user) {
+  const profileRef = doc(db, 'users', user.uid);
+  const profileSnap = await getDoc(profileRef);
+  const existing = profileSnap.exists() ? profileSnap.data() : {};
+  const fallbackName = (user.email || 'player').split('@')[0]
+    .replace(/[^a-zA-Z0-9_]/g, '').slice(0, 14) + user.uid.slice(-4);
+  const username = existing.username || user.displayName || fallbackName;
+
+  if (user.displayName !== username) {
+    await updateProfile(user, { displayName: username });
+  }
+  await setDoc(profileRef, {
+    uid: user.uid,
+    username,
+    usernameLower: username.toLowerCase(),
+    email: user.email || existing.email || '',
+    createdAt: existing.createdAt || serverTimestamp(),
+    lastLoginAt: serverTimestamp()
+  }, { merge: true });
+}
+
 // AUTH ROUTING
-onAuthStateChanged(auth, user => {
+onAuthStateChanged(auth, async user => {
   currentUser = user;
   if (!user) {
     stopListeners();
     showLogin();
     return;
   }
-
   if (user.uid === ADMIN_UID) {
     showAdmin();
   } else {
+    try {
+      await ensurePlayerProfile(user);
+    } catch (error) {
+      console.error('Player profile sync failed:', error);
+    }
     showPlayer();
   }
 });
