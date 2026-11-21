@@ -24,7 +24,7 @@ import {
   serverTimestamp,
   deleteDoc
 } from 'firebase/firestore';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, listAll, deleteObject } from 'firebase/storage';
 
 // FIREBASE
 const firebaseConfig = {
@@ -697,6 +697,12 @@ async function updateChatInfo(chatId, message) {
   }, { merge: true });
 }
 
+async function deleteChatImages(chatId) {
+  const folder = storageRef(storage, `chat-uploads/${chatId}`);
+  const files = await listAll(folder);
+  await Promise.all(files.items.map(item => deleteObject(item)));
+}
+
 async function uploadChatImage(file, chatId) {
   if (!file) return '';
   if (!file.type.startsWith('image/')) throw new Error('Sirf image upload kar sakte ho.');
@@ -833,6 +839,7 @@ async function openPlayerChat(firstMessage = '') {
       unsubscribeMessages = null;
     }
     try {
+      await deleteChatImages(chatId);
       const messages = await getDocs(collection(db, 'chats', chatId, 'messages'));
       const batch = writeBatch(db);
       messages.forEach(item => batch.delete(item.ref));
