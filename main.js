@@ -190,18 +190,16 @@ function showLogin() {
     <div class="panel">
       <h2 id="auth-heading">PLAYER LOGIN</h2>
       <input id="username" type="text" maxlength="20" placeholder="Username" autocomplete="username">
-      <input id="register-email" type="email" placeholder="Email (registration only)" autocomplete="email" hidden>
       <input id="password" type="password" placeholder="Password" autocomplete="current-password">
       <button id="login">LOGIN</button>
       <button id="register" class="secondary">CREATE NEW ACCOUNT</button>
       <button id="cancel-register" class="secondary" hidden>BACK TO LOGIN</button>
-      <p class="small">Player login username se hoga. Email sirf account banate waqt internally use hoga.</p>
+      <p class="small">Naye players username se login karenge. Purane accounts abhi registered email se login kar sakte hain.</p>
     </div>
   `);
 
   let registerMode = false;
   const usernameInput = document.getElementById('username');
-  const emailInput = document.getElementById('register-email');
   const passwordInput = document.getElementById('password');
   const loginButton = document.getElementById('login');
   const registerButton = document.getElementById('register');
@@ -215,24 +213,12 @@ function showLogin() {
         alert('Username aur password enter karo.');
         return;
       }
-      if (username.includes('@')) {
-        await signInWithEmailAndPassword(auth, username, password);
-        return;
-      }
-      const matches = await getDocs(query(
-        collection(db, 'users'),
-        where('usernameLower', '==', username.toLowerCase())
-      ));
-      if (matches.empty) {
-        alert('Username nahi mila. Username check karo ya naya account banao.');
-        return;
-      }
-      const player = matches.docs[0].data();
-      if (!player.email) {
-        alert('Is account ka login record incomplete hai. Admin se contact karo.');
-        return;
-      }
-      await signInWithEmailAndPassword(auth, player.email, password);
+      // New player accounts use a private synthetic Firebase email derived from username.
+      // Existing accounts and the admin can still sign in with their old email.
+      const authEmail = username.includes('@')
+        ? username
+        : username.toLowerCase() + '@players.nexzora.app';
+      await signInWithEmailAndPassword(auth, authEmail, password);
     } catch (error) {
       alert(error.message);
     }
@@ -242,7 +228,6 @@ function showLogin() {
     if (!registerMode) {
       registerMode = true;
       document.getElementById('auth-heading').textContent = 'CREATE PLAYER ACCOUNT';
-      emailInput.hidden = false;
       loginButton.hidden = true;
       cancelButton.hidden = false;
       registerButton.textContent = 'CREATE ACCOUNT';
@@ -251,31 +236,23 @@ function showLogin() {
     }
     try {
       const username = usernameInput.value.trim();
-      const email = emailInput.value.trim();
       const password = passwordInput.value;
       if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
         alert('Username 3-20 characters ka hona chahiye. Sirf letters, numbers aur _ use karo.');
         return;
       }
-      if (!email || password.length < 6) {
-        alert('Valid email aur minimum 6 character password enter karo.');
+      if (password.length < 6) {
+        alert('Password minimum 6 characters ka hona chahiye.');
         return;
       }
-      const existing = await getDocs(query(
-        collection(db, 'users'),
-        where('usernameLower', '==', username.toLowerCase())
-      ));
-      if (!existing.empty) {
-        alert('Ye username pehle se use ho raha hai. Dusra username choose karo.');
-        return;
-      }
-      const credential = await createUserWithEmailAndPassword(auth, email, password);
+      const usernameLower = username.toLowerCase();
+      const authEmail = usernameLower + '@players.nexzora.app';
+      const credential = await createUserWithEmailAndPassword(auth, authEmail, password);
       await updateProfile(credential.user, { displayName: username });
       await setDoc(doc(db, 'users', credential.user.uid), {
         uid: credential.user.uid,
         username,
-        usernameLower: username.toLowerCase(),
-        email,
+        usernameLower,
         createdAt: serverTimestamp(),
         lastLoginAt: serverTimestamp()
       }, { merge: true });
@@ -288,8 +265,6 @@ function showLogin() {
   cancelButton.onclick = () => {
     registerMode = false;
     document.getElementById('auth-heading').textContent = 'PLAYER LOGIN';
-    emailInput.hidden = true;
-    emailInput.value = '';
     loginButton.hidden = false;
     cancelButton.hidden = true;
     registerButton.textContent = 'CREATE NEW ACCOUNT';
