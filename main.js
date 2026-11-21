@@ -133,6 +133,12 @@ input{background:#0c0c0e;border:1px solid #36363c;color:#fff;border-radius:12px}
 .chat-composer{display:flex;align-items:center;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#111113;border-top:1px solid #29292e;flex:0 0 auto}
 .chat-composer input{flex:1;min-width:0;margin:0;padding:13px 14px;border-radius:22px;background:#202024;border:1px solid #39393f}
 .chat-send{width:48px;height:46px;flex:0 0 48px;margin:0;padding:0;border-radius:50%;font-size:18px}
+.join-card{padding:18px 18px 16px;background:linear-gradient(135deg,#f4f4f5,#d9d9de);color:#111;border:1px solid #fff}
+.join-card h2{color:#111;margin:4px 0 7px}
+.join-card .small{color:#4b4b51}
+.join-now-btn{width:auto;min-width:132px;display:inline-flex;align-items:center;justify-content:center;gap:12px;padding:10px 18px;font-size:12px;margin:12px 0 0}
+.join-now-btn span{font-size:17px;line-height:10px}
+
 .chat-attach{width:44px;height:44px;flex:0 0 44px;margin:0;padding:0;border-radius:50%;background:#202024;border:1px solid #39393f;font-size:19px}
 .chat-image{display:block;max-width:min(260px,70vw);max-height:300px;border-radius:12px;margin-top:8px;object-fit:cover}
 .auto-replies{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
@@ -707,7 +713,7 @@ async function sendChatMessage(chatId, message, isAdmin = false, imageUrl = '') 
 
   await setDoc(doc(db, 'chats', chatId), {
     playerUid: chatId,
-    playerEmail: isAdmin ? 'Player' : (currentUser.email || 'Player'),
+    ...(isAdmin ? {} : { playerEmail: currentUser.email || 'Player' }),
     lastMessage: cleanMessage || '📷 Image',
     updatedAt: serverTimestamp()
   }, { merge: true });
