@@ -551,7 +551,7 @@ function showTournaments() {
   `);
 
   document.getElementById('back').onclick = showPlayer;
-  document.getElementById('chat').onclick = () => openPlayerChat();
+  document.getElementById('chat').onclick = showPlayerInbox;
 
   const list = document.getElementById('tournament-list');
 
@@ -568,9 +568,12 @@ function showTournaments() {
     const button = document.createElement('button');
     button.textContent = 'REGISTER';
 
-    button.onclick = () => openPlayerChat(
-      `I want to register for ${tournament.name}.`
-    );
+    button.onclick = async () => {
+      try {
+        const id = await createPlayerChatThread(`I want to register for ${tournament.name}.`);
+        openPlayerChat(id);
+      } catch (error) { alert('Registration message send nahi hua: ' + error.message); }
+    };
 
     card.append(title, details, button);
     list.appendChild(card);
