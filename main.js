@@ -190,37 +190,70 @@ function showLogin() {
     <div class="panel">
       <h2 id="auth-heading">PLAYER LOGIN</h2>
       <input id="username" type="text" maxlength="20" placeholder="Username" autocomplete="username">
+      <input id="email" type="email" placeholder="Email address" autocomplete="email">
       <input id="password" type="password" placeholder="Password" autocomplete="current-password">
       <button id="login">LOGIN</button>
       <button id="register" class="secondary">CREATE NEW ACCOUNT</button>
       <button id="cancel-register" class="secondary" hidden>BACK TO LOGIN</button>
-      <p class="small">Naye players username se login karenge. Purane accounts abhi registered email se login kar sakte hain.</p>
+      <p class="small">Username, email aur password teeno enter karo. Admin apne registered admin email aur password se login kare.</p>
     </div>
   `);
 
   let registerMode = false;
   const usernameInput = document.getElementById('username');
+  const emailInput = document.getElementById('email');
   const passwordInput = document.getElementById('password');
   const loginButton = document.getElementById('login');
   const registerButton = document.getElementById('register');
   const cancelButton = document.getElementById('cancel-register');
 
   loginButton.onclick = async () => {
+    const username = usernameInput.value.trim();
+    const email = emailInput.value.trim().toLowerCase();
+    const password = passwordInput.value;
+
+    if (!username || !email || !password) {
+      alert('Username, email aur password teeno enter karo.');
+      return;
+    }
+
     try {
-      const username = usernameInput.value.trim();
-      const password = passwordInput.value;
-      if (!username || !password) {
-        alert('Username aur password enter karo.');
-        return;
+      let credential;
+      let usedLegacyUsernameLogin = false;
+
+      try {
+        credential = await signInWithEmailAndPassword(auth, email, password);
+      } catch (emailError) {
+        // Backward compatibility for accounts created before email was collected.
+        const legacyEmail = username.toLowerCase() + '@players.nexzora.app';
+        credential = await signInWithEmailAndPassword(auth, legacyEmail, password);
+        usedLegacyUsernameLogin = true;
       }
-      // New player accounts use a private synthetic Firebase email derived from username.
-      // Existing accounts and the admin can still sign in with their old email.
-      const authEmail = username.includes('@')
-        ? username
-        : username.toLowerCase() + '@players.nexzora.app';
-      await signInWithEmailAndPassword(auth, authEmail, password);
+
+      if (credential.user.uid !== ADMIN_UID) {
+        const profileRef = doc(db, 'users', credential.user.uid);
+        const profileSnap = await getDoc(profileRef);
+        const savedUsername = profileSnap.exists()
+          ? (profileSnap.data().username || '')
+          : '';
+
+        if (savedUsername && savedUsername.toLowerCase() !== username.toLowerCase()) {
+          await signOut(auth);
+          alert('Username is email account se match nahi karta.');
+          return;
+        }
+
+        await setDoc(profileRef, {
+          uid: credential.user.uid,
+          username,
+          usernameLower: username.toLowerCase(),
+          ...(usedLegacyUsernameLogin ? {} : { email }),
+          lastLoginAt: serverTimestamp()
+        }, { merge: true });
+      }
+
     } catch (error) {
-      alert(error.message);
+      alert('Login nahi hua: ' + error.message);
     }
   };
 
@@ -234,31 +267,40 @@ function showLogin() {
       passwordInput.autocomplete = 'new-password';
       return;
     }
+
     try {
       const username = usernameInput.value.trim();
+      const email = emailInput.value.trim().toLowerCase();
       const password = passwordInput.value;
+
       if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
         alert('Username 3-20 characters ka hona chahiye. Sirf letters, numbers aur _ use karo.');
+        return;
+      }
+      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+        alert('Valid email address enter karo.');
         return;
       }
       if (password.length < 6) {
         alert('Password minimum 6 characters ka hona chahiye.');
         return;
       }
+
       const usernameLower = username.toLowerCase();
-      const authEmail = usernameLower + '@players.nexzora.app';
-      const credential = await createUserWithEmailAndPassword(auth, authEmail, password);
+      const credential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(credential.user, { displayName: username });
       await setDoc(doc(db, 'users', credential.user.uid), {
         uid: credential.user.uid,
         username,
         usernameLower,
+        email,
         createdAt: serverTimestamp(),
         lastLoginAt: serverTimestamp()
       }, { merge: true });
-      alert('Account ban gaya! Ab username se login kar sakte ho.');
+
+      alert('Account ban gaya! Ab username, email aur password se login karo.');
     } catch (error) {
-      alert(error.message);
+      alert('Account create nahi hua: ' + error.message);
     }
   };
 
