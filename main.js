@@ -1147,3 +1147,10 @@ onAuthStateChanged(auth, async user => {
 .chat-list .inbox-item strong{font-size:15px;color:#fff}
 .chat-list .inbox-item span{font-size:13px;color:#aaa;font-weight:400;letter-spacing:0}
 .chat-mode #app{padding:0}
+
+
+/* Full-height Instagram-like admin inbox list */
+#admin-inbox>.panel{margin:0 -16px;padding:18px 0 0;border-left:0;border-right:0;border-radius:0;min-height:calc(100dvh - 170px)}
+#admin-inbox>.panel>.section-kicker,#admin-inbox>.panel>h2,#admin-inbox>.panel>p{margin-left:16px;margin-right:16px}
+#admin-inbox #chat-list{margin-top:18px}
+#admin-inbox #chat-list .inbox-item{min-height:76px}
