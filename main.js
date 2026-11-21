@@ -24,6 +24,7 @@ import {
   serverTimestamp,
   deleteDoc
 } from 'firebase/firestore';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // FIREBASE
 const firebaseConfig = {
@@ -38,6 +39,7 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
+const storage = getStorage(firebaseApp);
 
 const ADMIN_UID = '69EkQfAkuShSM5Fe5pCEs8nOv0l2';
 
@@ -93,7 +95,57 @@ button:disabled{opacity:.5}
 .chat-list button{text-align:left;background:#292929}
 `;
 
+style.textContent += `
+/* NEXZORA ULTRA PREMIUM: white / black / red */
+:root{color-scheme:dark;--nx-red:#e51d36;--nx-red2:#a80d24;--nx-white:#f7f7f8;--nx-muted:#a7a7ad;--nx-card:#141416;--nx-line:#29292e}
+body{margin:0;background:#080809;color:var(--nx-white);font-family:Inter,system-ui,-apple-system,Arial,sans-serif;-webkit-tap-highlight-color:transparent}
+#app{max-width:760px;margin:0 auto;min-height:100vh;padding:0 16px 28px}
+.header{background:#09090b;border-bottom:1px solid #3c1119;padding:20px 10px;margin:0 -16px 16px;position:relative}
+.logo{color:#fff;font-size:27px;letter-spacing:2.4px;text-shadow:0 0 18px rgba(229,29,54,.35)}
+.logo:after{content:'  •';color:var(--nx-red)}
+.subtitle{color:#aaa;letter-spacing:3px;font-size:10px}
+.panel{background:linear-gradient(145deg,#18181b,#101012);border:1px solid #303035;border-radius:18px;box-shadow:0 12px 34px #0008}
+button{background:linear-gradient(110deg,#a90f28,#ed263f);color:#fff;border:1px solid #e33a4e;border-radius:12px;font-weight:800;letter-spacing:.4px}
+button.secondary{background:#19191d;border:1px solid #3a3a40;color:#eee}
+input{background:#0c0c0e;border:1px solid #36363c;color:#fff;border-radius:12px}
+.welcome-banner,.admin-hero{background:linear-gradient(135deg,#f7f7f8 0%,#dedee2 100%);color:#101014;border:1px solid #fff;border-radius:20px;box-shadow:0 12px 30px #0005}
+.welcome-banner p,.admin-hero p{color:#444}
+.welcome-banner h1,.admin-hero h1{color:#111}
+.welcome-banner h1 em,.admin-hero h1 em{color:#d71932;text-shadow:none}
+.eyebrow,.section-kicker{color:#d71932}
+.game-tag{background:#111;color:#fff;border-color:#d71932}
+.score-row{background:#101013;border:1px solid #29292e;border-radius:12px}
+.score-rank,.score-points{color:#ff5368}
+.admin-nav{background:#09090bf2}
+.admin-nav-btn.active{background:linear-gradient(110deg,#a90f28,#ed263f)!important}
+.messages{height:calc(100dvh - 178px);min-height:220px;max-height:none;overflow-y:auto;background:#09090b;border:0;border-radius:0;margin:0;padding:16px 13px 20px;overscroll-behavior:contain}
+.message{background:#202024;border:1px solid #303036;border-radius:18px 18px 18px 5px;max-width:82%;padding:11px 13px;margin:9px 0}
+.message.mine{background:linear-gradient(135deg,#a90f28,#d91d37);border-color:#ed5264;border-radius:18px 18px 5px 18px}
+.message-name{color:#ff9aa7}
+.message-text{color:#fff;font-size:14px}
+.chat-mode #app{max-width:none;padding:0;min-height:100dvh}
+.chat-mode .header,.chat-mode .footer{display:none}
+.chat-screen{height:100dvh;height:100dvh;display:flex;flex-direction:column;background:#09090b;overflow:hidden}
+.chat-topbar{height:62px;flex:0 0 62px;display:flex;align-items:center;gap:12px;padding:0 14px;background:#111113;border-bottom:1px solid #29292e}
+.chat-back{width:42px;height:42px;padding:0;margin:0;background:#202024;border:1px solid #39393f;font-size:20px}
+.chat-title{font-weight:900;letter-spacing:.5px;font-size:15px}
+.chat-subtitle{font-size:10px;color:#a6a6ad;margin-top:3px}
+.chat-composer{display:flex;align-items:center;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#111113;border-top:1px solid #29292e;flex:0 0 auto}
+.chat-composer input{flex:1;min-width:0;margin:0;padding:13px 14px;border-radius:22px;background:#202024;border:1px solid #39393f}
+.chat-send{width:48px;height:46px;flex:0 0 48px;margin:0;padding:0;border-radius:50%;font-size:18px}
+.chat-attach{width:44px;height:44px;flex:0 0 44px;margin:0;padding:0;border-radius:50%;background:#202024;border:1px solid #39393f;font-size:19px}
+.chat-image{display:block;max-width:min(260px,70vw);max-height:300px;border-radius:12px;margin-top:8px;object-fit:cover}
+.auto-replies{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
+.auto-replies button{width:auto;margin:0;padding:9px 11px;font-size:11px;background:#222226;border:1px solid #4a3035}
+.chat-mode .admin-auto-wrap{padding:8px 12px;background:#111113;border-top:1px solid #28282d}
+.chat-mode .messages{flex:1;min-height:0}
+.chat-mode .chat-composer{flex:0 0 auto}
+body,body *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+input,textarea,[contenteditable=true]{-webkit-user-select:text;user-select:text}
+@media(min-width:700px){.chat-screen{max-width:900px;margin:0 auto;border-left:1px solid #28282d;border-right:1px solid #28282d}}
+`;
 document.head.appendChild(style);
+document.addEventListener('contextmenu',event=>{if(!event.target.closest('input,textarea,[contenteditable=true]'))event.preventDefault();});
 
 function shell(content) {
   app.innerHTML = `
@@ -178,14 +230,11 @@ function showPlayer() {
       <span class="game-tag">🔥 FREE FIRE ARENA</span>
     </section>
 
-    <section class="hero-live">
-      <div class="section-kicker">NOW STREAMING</div>
-      <h2>🔴 WATCH LIVE MATCH</h2>
-      <p class="small" id="live-description">Free Fire live match stream</p>
-      <div id="live-player" class="small live-status" style="margin:12px 0">
-        Checking live match...
-      </div>
-      <button id="watch-live" disabled>▶ WATCH LIVE MATCH</button>
+    <section class="panel join-card">
+      <span class="section-kicker">FREE FIRE ARENA</span>
+      <h2>READY TO COMPETE?</h2>
+      <p class="small">Tournament details aur registration ke liye admin se connect karo.</p>
+      <button id="join-now" class="join-now-btn">JOIN NOW <span>→</span></button>
     </section>
 
     <div class="panel premium-panel">
@@ -199,9 +248,8 @@ function showPlayer() {
   document.getElementById('logout').onclick = () => signOut(auth);
   document.getElementById('chat').onclick = () => openPlayerChat();
   document.getElementById('profile').onclick = showProfile;
-  document.getElementById('watch-live').onclick = openLiveMatch;
+  document.getElementById('join-now').onclick = () => openPlayerChat('I want to join the Free Fire tournament. Please share the details.');
 
-  listenToLiveMatch();
   listenToScores();
 }
 
@@ -441,7 +489,6 @@ function showAdmin() {
 
     <div class="admin-nav">
       <button class="admin-nav-btn active" data-target="admin-overview">OVERVIEW</button>
-      <button class="admin-nav-btn" data-target="admin-live">LIVE MATCH</button>
       <button class="admin-nav-btn" data-target="admin-scores-section">SCORES</button>
       <button class="admin-nav-btn" data-target="admin-inbox">PLAYER CHAT</button>
     </div>
@@ -456,20 +503,8 @@ function showAdmin() {
       <div class="panel premium-panel">
         <span class="section-kicker">QUICK ACTIONS</span>
         <h2>MANAGE YOUR ARENA</h2>
-        <button class="game-button admin-jump" data-target="admin-live">🔴 UPDATE LIVE MATCH</button>
         <button class="secondary admin-jump" data-target="admin-scores-section">🏆 MANAGE PLAYER SCORES</button>
         <button class="secondary admin-jump" data-target="admin-inbox">💬 OPEN PLAYER INBOX</button>
-      </div>
-    </section>
-
-    <section id="admin-live" class="admin-section" hidden>
-      <div class="panel premium-panel">
-        <span class="section-kicker">STREAM MANAGEMENT</span>
-        <h2>🔴 LIVE MATCH CONTROL</h2>
-        <input id="live-title" maxlength="100" placeholder="Match title">
-        <input id="live-url" type="url" placeholder="YouTube / live stream URL">
-        <button id="save-live">SAVE LIVE MATCH LINK</button>
-        <p class="small">Saved link will appear on player home screen.</p>
       </div>
     </section>
 
@@ -489,7 +524,7 @@ function showAdmin() {
       <div class="panel premium-panel">
         <span class="section-kicker">PLAYER SUPPORT</span>
         <h2>💬 PRIVATE PLAYER INBOX</h2>
-        <p class="small">Open a player's conversation to reply.</p>
+        <p class="small">Player ko reply karo ya quick auto-message bhejo.</p>
         <div id="chat-list" class="chat-list">Loading...</div>
       </div>
       <div id="admin-chat"></div>
@@ -501,7 +536,6 @@ function showAdmin() {
   `);
 
   document.getElementById('logout').onclick = () => signOut(auth);
-  document.getElementById('save-live').onclick = saveLiveMatch;
   document.getElementById('add-score').onclick = addPlayerScore;
 
   const showSection = id => {
@@ -650,26 +684,42 @@ function listenToAdminScores() {
 // CHAT MESSAGE HELPERS
 async function updateChatInfo(chatId, message) {
   await setDoc(doc(db, 'chats', chatId), {
+    playerUid: chatId,
     playerEmail: currentUser.email || 'Player',
-    lastMessage: message,
+    lastMessage: message || '📷 Image',
     updatedAt: serverTimestamp()
   }, { merge: true });
 }
 
-async function sendChatMessage(chatId, message, isAdmin = false) {
-  const cleanMessage = message.trim();
+async function uploadChatImage(file, chatId) {
+  if (!file) return '';
+  if (!file.type.startsWith('image/')) throw new Error('Sirf image upload kar sakte ho.');
+  if (file.size > 5 * 1024 * 1024) throw new Error('Image 5 MB se chhoti honi chahiye.');
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const target = storageRef(storage, `chat-uploads/${chatId}/${Date.now()}-${safeName}`);
+  const uploaded = await uploadBytes(target, file, { contentType: file.type });
+  return await getDownloadURL(uploaded.ref);
+}
 
-  if (!cleanMessage) return;
+async function sendChatMessage(chatId, message, isAdmin = false, imageUrl = '') {
+  const cleanMessage = message.trim();
+  if (!cleanMessage && !imageUrl) return;
+
+  await setDoc(doc(db, 'chats', chatId), {
+    playerUid: chatId,
+    playerEmail: isAdmin ? 'Player' : (currentUser.email || 'Player'),
+    lastMessage: cleanMessage || '📷 Image',
+    updatedAt: serverTimestamp()
+  }, { merge: true });
 
   await addDoc(collection(db, 'chats', chatId, 'messages'), {
     senderUid: currentUser.uid,
     senderName: isAdmin ? 'NEXZORA ADMIN' : 'PLAYER',
     text: cleanMessage,
+    imageUrl,
     system: false,
     createdAt: serverTimestamp()
   });
-
-  await updateChatInfo(chatId, cleanMessage);
 }
 
 function listenToMessages(chatId) {
@@ -702,8 +752,17 @@ function listenToMessages(chatId) {
         const text = document.createElement('div');
         text.className = 'message-text';
         text.textContent = data.text || '';
-
-        message.append(name, text);
+        message.appendChild(name);
+        if (data.text) message.appendChild(text);
+        if (data.imageUrl) {
+          const image = document.createElement('img');
+          image.className = 'chat-image';
+          image.src = data.imageUrl;
+          image.alt = 'Chat image';
+          image.loading = 'lazy';
+          image.addEventListener('click', () => window.open(data.imageUrl, '_blank'));
+          message.appendChild(image);
+        }
         area.appendChild(message);
       });
 
@@ -722,34 +781,45 @@ async function openPlayerChat(firstMessage = '') {
   stopListeners();
 
   const chatId = currentUser.uid;
+  document.body.classList.add('chat-mode');
   shell(`
-    <div class="panel">
-      <h2>💬 PLAYER CHAT</h2>
-      <p class="small">Admin ko message bhejo. Chat se exit karne par conversation clear ho jayegi.</p>
+    <section class="chat-screen">
+      <header class="chat-topbar">
+        <button class="chat-back" id="exit-chat" aria-label="Back">‹</button>
+        <div><div class="chat-title">NEXZORA SUPPORT</div><div class="chat-subtitle">PRIVATE PLAYER CHAT</div></div>
+      </header>
       <div id="messages" class="messages"></div>
-      <input id="chat-input" maxlength="500" placeholder="Type your message...">
-      <button id="send-chat">SEND MESSAGE</button>
-      <button class="secondary" id="exit-chat">EXIT CHAT</button>
-    </div>
+      <form class="chat-composer" id="player-chat-form">
+        <input id="chat-image-file" type="file" accept="image/*" hidden>
+        <button type="button" class="chat-attach" id="attach-image" aria-label="Upload image">＋</button>
+        <input id="chat-input" maxlength="500" placeholder="Message..." autocomplete="off">
+        <button type="submit" class="chat-send" aria-label="Send">➤</button>
+      </form>
+    </section>
   `);
 
   listenToMessages(chatId);
-
-  document.getElementById('send-chat').onclick = async () => {
+  document.getElementById('attach-image').onclick = () => document.getElementById('chat-image-file').click();
+  document.getElementById('player-chat-form').onsubmit = async event => {
+    event.preventDefault();
     const input = document.getElementById('chat-input');
+    const fileInput = document.getElementById('chat-image-file');
     const message = input.value.trim();
-    if (!message) return;
+    const file = fileInput.files[0];
+    if (!message && !file) return;
+    const sendButton = document.querySelector('.chat-send');
+    sendButton.disabled = true;
     try {
-      await sendChatMessage(chatId, message);
+      const imageUrl = file ? await uploadChatImage(file, chatId) : '';
+      await sendChatMessage(chatId, message, false, imageUrl);
       input.value = '';
+      fileInput.value = '';
     } catch (error) {
-      alert('Message send nahi hua: ' + error.message);
+      alert('Message/image send nahi hua: ' + error.message);
+    } finally {
+      sendButton.disabled = false;
     }
   };
-
-  document.getElementById('chat-input').addEventListener('keydown', event => {
-    if (event.key === 'Enter') document.getElementById('send-chat').click();
-  });
 
   document.getElementById('exit-chat').onclick = async () => {
     if (unsubscribeMessages) {
@@ -766,6 +836,7 @@ async function openPlayerChat(firstMessage = '') {
       console.error('Chat cleanup failed:', error);
       alert('Chat clear nahi ho payi. Firestore rules check karein.');
     }
+    document.body.classList.remove('chat-mode');
     showPlayer();
   };
 
@@ -778,6 +849,7 @@ async function openPlayerChat(firstMessage = '') {
 function openAdminChat(chatId) {
   const holder = document.getElementById('admin-chat');
   if (!holder) return;
+  document.body.classList.add('chat-mode');
 
   if (unsubscribeMessages) {
     unsubscribeMessages();
@@ -785,26 +857,56 @@ function openAdminChat(chatId) {
   }
 
   holder.innerHTML = `
-    <div class="panel">
-      <h3>PLAYER CONVERSATION</h3>
+    <section class="chat-screen">
+      <header class="chat-topbar">
+        <button class="chat-back" id="close-admin-chat" aria-label="Back">‹</button>
+        <div><div class="chat-title">PLAYER CONVERSATION</div><div class="chat-subtitle">NEXZORA ADMIN INBOX</div></div>
+      </header>
       <div id="messages" class="messages"></div>
-      <input id="admin-chat-input" maxlength="500" placeholder="Reply to player...">
-      <button id="admin-send-chat">SEND REPLY</button>
-      <button class="secondary" id="close-admin-chat">CLOSE CHAT</button>
-    </div>
+      <div class="admin-auto-wrap">
+        <div class="small">AUTO MESSAGES · TAP TO SEND</div>
+        <div class="auto-replies">
+          <button type="button" data-auto="Welcome to NEXZORA eSports! How can we help you?">Welcome</button>
+          <button type="button" data-auto="Your tournament registration request has been received.">Registration received</button>
+          <button type="button" data-auto="Your match details will be shared here shortly.">Match details soon</button>
+          <button type="button" data-auto="Thank you for contacting NEXZORA Support.">Thank you</button>
+        </div>
+      </div>
+      <form class="chat-composer" id="admin-chat-form">
+        <input id="admin-image-file" type="file" accept="image/*" hidden>
+        <button type="button" class="chat-attach" id="admin-attach-image" aria-label="Upload image">＋</button>
+        <input id="admin-chat-input" maxlength="500" placeholder="Reply..." autocomplete="off">
+        <button type="submit" class="chat-send" aria-label="Send">➤</button>
+      </form>
+    </section>
   `;
 
   listenToMessages(chatId);
-
-  document.getElementById('admin-send-chat').onclick = async () => {
+  document.getElementById('admin-attach-image').onclick = () => document.getElementById('admin-image-file').click();
+  document.querySelectorAll('[data-auto]').forEach(button => {
+    button.onclick = async () => {
+      try { await sendChatMessage(chatId, button.dataset.auto, true); }
+      catch (error) { alert('Auto message send nahi hua: ' + error.message); }
+    };
+  });
+  document.getElementById('admin-chat-form').onsubmit = async event => {
+    event.preventDefault();
     const input = document.getElementById('admin-chat-input');
+    const fileInput = document.getElementById('admin-image-file');
     const message = input.value.trim();
-    if (!message) return;
+    const file = fileInput.files[0];
+    if (!message && !file) return;
+    const sendButton = document.querySelector('.chat-send');
+    sendButton.disabled = true;
     try {
-      await sendChatMessage(chatId, message, true);
+      const imageUrl = file ? await uploadChatImage(file, chatId) : '';
+      await sendChatMessage(chatId, message, true, imageUrl);
       input.value = '';
+      fileInput.value = '';
     } catch (error) {
-      alert('Reply send nahi hua: ' + error.message);
+      alert('Reply/image send nahi hua: ' + error.message);
+    } finally {
+      sendButton.disabled = false;
     }
   };
 
@@ -814,6 +916,7 @@ function openAdminChat(chatId) {
       unsubscribeMessages = null;
     }
     holder.innerHTML = '';
+    document.body.classList.remove('chat-mode');
   };
 }
 
