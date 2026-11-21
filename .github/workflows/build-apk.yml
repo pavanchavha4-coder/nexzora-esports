@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - nexzora-premium-release
 
 jobs:
   build:
