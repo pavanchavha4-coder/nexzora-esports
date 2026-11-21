@@ -54,7 +54,10 @@ service cloud.firestore {
       allow update: if isAdmin()
         || (
           ownsChat(chatId)
-          && request.resource.data.playerUid == resource.data.playerUid
+          && (
+            request.resource.data.playerUid == resource.data.playerUid
+            || (!resource.data.keys().hasAny(['playerUid']) && chatId == request.auth.uid)
+          )
         );
 
       allow delete: if isAdmin() || ownsChat(chatId);
