@@ -39,6 +39,49 @@ jobs:
       - name: Sync Android
         run: npx cap sync android
 
+      - name: Generate and verify NEXZORA launcher icons
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin
+          test -s public/nexzora-esports-icon.svg
+          RES="android/app/src/main/res"
+          for spec in "mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192"; do
+            folder="${spec%%:*}"
+            size="${spec##*:}"
+            mkdir -p "$RES/mipmap-$folder"
+            rsvg-convert -w "$size" -h "$size" public/nexzora-esports-icon.svg > "$RES/mipmap-$folder/ic_launcher.png"
+            cp "$RES/mipmap-$folder/ic_launcher.png" "$RES/mipmap-$folder/ic_launcher_round.png"
+            test -s "$RES/mipmap-$folder/ic_launcher.png"
+          done
+          mkdir -p "$RES/drawable-nodpi" "$RES/mipmap-anydpi-v26"
+          rsvg-convert -w 432 -h 432 public/nexzora-esports-icon.svg > "$RES/drawable-nodpi/ic_launcher_foreground.png"
+          cat > "$RES/mipmap-anydpi-v26/ic_launcher.xml" <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+            <background android:drawable="@android:color/black" />
+            <foreground android:drawable="@drawable/ic_launcher_foreground" />
+          </adaptive-icon>
+          EOF
+          cp "$RES/mipmap-anydpi-v26/ic_launcher.xml" "$RES/mipmap-anydpi-v26/ic_launcher_round.xml"
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path("android/app/src/main/AndroidManifest.xml")
+          s = p.read_text()
+          s, n1 = re.subn(r'android:icon="[^"]+"', 'android:icon="@mipmap/ic_launcher"', s, count=1)
+          if n1 == 0:
+              s = s.replace("<application", '<application android:icon="@mipmap/ic_launcher"', 1)
+          s, n2 = re.subn(r'android:roundIcon="[^"]+"', 'android:roundIcon="@mipmap/ic_launcher_round"', s, count=1)
+          if n2 == 0:
+              s = s.replace('android:icon="@mipmap/ic_launcher"', 'android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"', 1)
+          p.write_text(s)
+          assert 'android:icon="@mipmap/ic_launcher"' in s
+          assert 'android:roundIcon="@mipmap/ic_launcher_round"' in s
+          PY
+          test -s "$RES/mipmap-xxxhdpi/ic_launcher.png"
+          test -s "$RES/mipmap-anydpi-v26/ic_launcher.xml"
+
       - name: Build APK
         run: |
           cd android
