@@ -686,38 +686,50 @@ function showAdmin() {
   personalTab.onclick = () => setChatTab(false);
   allTab.onclick = () => setChatTab(true);
 
-  // Personal inbox: show only the newest private thread for each player.
+  // Instagram-style inbox: exactly one username row per player UID.
   unsubscribeChats = onSnapshot(collection(db, 'chats'), snapshot => {
     const list = document.getElementById('chat-list');
     if (!list) return;
     list.innerHTML = '';
-    const newestByPlayer = new Map();
+    const grouped = new Map();
     snapshot.docs.map(d => ({id:d.id, ...d.data()}))
       .filter(t => (t.playerUid || t.id) !== ADMIN_UID)
-      .sort((a,b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0))
       .forEach(t => {
         const uid = t.playerUid || t.id;
-        if (!newestByPlayer.has(uid)) newestByPlayer.set(uid, t);
+        if (!grouped.has(uid)) grouped.set(uid, []);
+        grouped.get(uid).push(t);
       });
-    if (!newestByPlayer.size) { list.textContent = 'No player conversations yet.'; return; }
-    newestByPlayer.forEach((thread, playerUid) => {
+    if (!grouped.size) { list.textContent = 'No player conversations yet.'; return; }
+    grouped.forEach((threads, playerUid) => {
+      threads.sort((a,b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
+      const latest = threads[0];
       const row = document.createElement('div');
       row.className = 'inbox-row';
       const button = document.createElement('button');
       button.className = 'inbox-item';
       const title = document.createElement('strong');
-      title.textContent = thread.playerUsername || 'Player';
+      title.textContent = latest.playerUsername || 'Player';
       const preview = document.createElement('span');
-      preview.textContent = thread.lastMessage || 'Start conversation';
+      preview.textContent = threads.length > 1
+        ? (latest.lastMessage || 'Open conversation') + ' · ' + threads.length + ' conversations'
+        : (latest.lastMessage || 'Start conversation');
       button.append(title, preview);
-      button.onclick = () => openAdminChat(thread.id, thread.playerUsername || 'Player', playerUid);
+      button.onclick = async () => {
+        button.disabled = true;
+        try {
+          const canonicalId = await mergePlayerThreads(threads, playerUid);
+          openAdminChat(canonicalId, latest.playerUsername || 'Player', playerUid);
+        } catch (error) { alert('Chat open nahi hui: ' + error.message); }
+        finally { button.disabled = false; }
+      };
       const remove = document.createElement('button');
       remove.className = 'chat-delete';
       remove.textContent = 'DELETE';
       remove.onclick = async () => {
-        if (!confirm('Is player ki personal chat delete karni hai?')) return;
-        try { await deletePrivateChat(thread.id, playerUid); }
-        catch (error) { alert('Chat delete nahi hui: ' + error.message); }
+        if (!confirm('Is player ki poori personal chat delete karni hai?')) return;
+        try {
+          for (const thread of threads) await deletePrivateChat(thread.id, playerUid);
+        } catch (error) { alert('Chat delete nahi hui: ' + error.message); }
       };
       row.append(button, remove);
       list.appendChild(row);
@@ -884,6 +896,32 @@ async function createPlayerChatThread(firstMessage = '') {
     });
   }
   return threadRef.id;
+}
+
+async function mergePlayerThreads(threads, playerUid) {
+  const sorted = [...threads].sort((a,b) => (a.id === playerUid ? -1 : b.id === playerUid ? 1 : (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0)));
+  const canonical = sorted[0];
+  const canonicalRef = doc(db, 'chats', canonical.id);
+  await setDoc(canonicalRef, {
+    playerUid,
+    playerUsername: canonical.playerUsername || 'Player',
+    lastMessage: canonical.lastMessage || 'Conversation',
+    updatedAt: canonical.updatedAt || serverTimestamp()
+  }, {merge:true});
+
+  for (const source of sorted.slice(1)) {
+    const sourceMessages = await getDocs(collection(db, 'chats', source.id, 'messages'));
+    for (let i = 0; i < sourceMessages.docs.length; i += 400) {
+      const batch = writeBatch(db);
+      sourceMessages.docs.slice(i, i + 400).forEach(messageDoc => {
+        const stableId = 'merged_' + source.id + '_' + messageDoc.id;
+        batch.set(doc(db, 'chats', canonical.id, 'messages', stableId), messageDoc.data());
+      });
+      await batch.commit();
+    }
+    await deletePrivateChat(source.id, playerUid);
+  }
+  return canonical.id;
 }
 
 async function deletePrivateChat(threadId, playerUid) {
