@@ -1,10 +1,8 @@
-
-<svg xmlns="http://www.w3.org/2000/svg"
-     width="512" height="512"
-     viewBox="0 0 512 512">
-  <image
-    href="/nexzora-esports-icon.png"
-    width="512"
-    height="512"
-    preserveAspectRatio="xMidYMid slice"/>
-</svg>
+{
+  "appId": "com.nexzora.esports",
+  "appName": "NEXZORA ESPORTS",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
