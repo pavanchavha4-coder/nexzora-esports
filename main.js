@@ -919,7 +919,12 @@ async function mergePlayerThreads(threads, playerUid) {
       });
       await batch.commit();
     }
-    await deletePrivateChat(source.id, playerUid);
+    for (let i = 0; i < sourceMessages.docs.length; i += 400) {
+      const cleanup = writeBatch(db);
+      sourceMessages.docs.slice(i, i + 400).forEach(messageDoc => cleanup.delete(messageDoc.ref));
+      await cleanup.commit();
+    }
+    await deleteDoc(doc(db, 'chats', source.id));
   }
   return canonical.id;
 }
