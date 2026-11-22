@@ -224,10 +224,19 @@ function showLogin() {
       try {
         credential = await signInWithEmailAndPassword(auth, email, password);
       } catch (emailError) {
-        // Backward compatibility for accounts created before email was collected.
+        // Try legacy username-based accounts only when the username can form a valid email.
+        // Never replace the real email-login error with a misleading auth/invalid-email error.
+        const validLegacyUsername = /^[a-zA-Z0-9_]{3,20}$/.test(username);
+        if (emailError.code !== 'auth/user-not-found' || !validLegacyUsername) {
+          throw emailError;
+        }
         const legacyEmail = username.toLowerCase() + '@players.nexzora.app';
-        credential = await signInWithEmailAndPassword(auth, legacyEmail, password);
-        usedLegacyUsernameLogin = true;
+        try {
+          credential = await signInWithEmailAndPassword(auth, legacyEmail, password);
+          usedLegacyUsernameLogin = true;
+        } catch {
+          throw emailError;
+        }
       }
 
       if (credential.user.uid !== ADMIN_UID) {
@@ -277,7 +286,7 @@ function showLogin() {
         alert('Username 3-20 characters ka hona chahiye. Sirf letters, numbers aur _ use karo.');
         return;
       }
-      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         alert('Valid email address enter karo.');
         return;
       }
