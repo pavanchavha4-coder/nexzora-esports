@@ -638,6 +638,10 @@ function showAdmin() {
         <span class="section-kicker">PLAYER SUPPORT</span>
         <h2>💬 PRIVATE PLAYER INBOX</h2>
         <p class="small">Player ko reply karo ya quick auto-message bhejo.</p>
+        <div class="chat-tabs">
+          <button type="button" class="chat-tab active" id="personal-chat-tab">PERSONAL CHAT</button>
+          <button type="button" class="chat-tab" id="all-players-chat-tab">ALL PLAYERS CHAT</button>
+        </div>
         <div id="chat-list" class="chat-list">Loading...</div>
       </div>
       <div id="admin-chat"></div>
@@ -665,36 +669,64 @@ function showAdmin() {
 
   listenToAdminScores();
 
-  // Instagram-style admin inbox: every player's conversation thread appears here.
-  unsubscribeChats = onSnapshot(
-    collection(db, 'chats'),
-    snapshot => {
-      const list = document.getElementById('chat-list');
-      if (!list) return;
-      list.innerHTML = '';
-      const threads = snapshot.docs.map(d => ({ id:d.id, ...d.data() }))
-        .sort((a,b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
-      if (!threads.length) { list.textContent = 'No player conversations yet.'; return; }
-      threads.forEach(thread => {
-        const playerUid = thread.playerUid || thread.id;
-        if (playerUid === ADMIN_UID) return;
-        const button = document.createElement('button');
-        button.className = 'inbox-item';
-        const title = document.createElement('strong');
-        title.textContent = thread.playerUsername || 'Player';
-        const preview = document.createElement('span');
-        preview.textContent = thread.lastMessage || 'Start conversation';
-        button.append(title, preview);
-        button.onclick = () => openAdminChat(thread.id, thread.playerUsername || 'Player', playerUid);
-        list.appendChild(button);
+  const personalTab = document.getElementById('personal-chat-tab');
+  const allTab = document.getElementById('all-players-chat-tab');
+  const personalList = document.getElementById('chat-list');
+  const adminChatHolder = document.getElementById('admin-chat');
+  const setChatTab = isAll => {
+    personalTab.classList.toggle('active', !isAll);
+    allTab.classList.toggle('active', isAll);
+    personalList.hidden = isAll;
+    adminChatHolder.innerHTML = '';
+    document.body.classList.remove('chat-mode');
+    if (unsubscribeMessages) unsubscribeMessages();
+    unsubscribeMessages = null;
+    if (isAll) openBroadcastChat(true, adminChatHolder);
+  };
+  personalTab.onclick = () => setChatTab(false);
+  allTab.onclick = () => setChatTab(true);
+
+  // Personal inbox: show only the newest private thread for each player.
+  unsubscribeChats = onSnapshot(collection(db, 'chats'), snapshot => {
+    const list = document.getElementById('chat-list');
+    if (!list) return;
+    list.innerHTML = '';
+    const newestByPlayer = new Map();
+    snapshot.docs.map(d => ({id:d.id, ...d.data()}))
+      .filter(t => (t.playerUid || t.id) !== ADMIN_UID)
+      .sort((a,b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0))
+      .forEach(t => {
+        const uid = t.playerUid || t.id;
+        if (!newestByPlayer.has(uid)) newestByPlayer.set(uid, t);
       });
-    },
-    error => {
-      console.error('Chat inbox error:', error);
-      const list = document.getElementById('chat-list');
-      if (list) list.textContent = 'Chats load nahi hue. Firestore Rules check karein.';
-    }
-  );
+    if (!newestByPlayer.size) { list.textContent = 'No player conversations yet.'; return; }
+    newestByPlayer.forEach((thread, playerUid) => {
+      const row = document.createElement('div');
+      row.className = 'inbox-row';
+      const button = document.createElement('button');
+      button.className = 'inbox-item';
+      const title = document.createElement('strong');
+      title.textContent = thread.playerUsername || 'Player';
+      const preview = document.createElement('span');
+      preview.textContent = thread.lastMessage || 'Start conversation';
+      button.append(title, preview);
+      button.onclick = () => openAdminChat(thread.id, thread.playerUsername || 'Player', playerUid);
+      const remove = document.createElement('button');
+      remove.className = 'chat-delete';
+      remove.textContent = 'DELETE';
+      remove.onclick = async () => {
+        if (!confirm('Is player ki personal chat delete karni hai?')) return;
+        try { await deletePrivateChat(thread.id, playerUid); }
+        catch (error) { alert('Chat delete nahi hui: ' + error.message); }
+      };
+      row.append(button, remove);
+      list.appendChild(row);
+    });
+  }, error => {
+    console.error('Chat inbox error:', error);
+    const list = document.getElementById('chat-list');
+    if (list) list.textContent = 'Chats load nahi hue. Firestore Rules check karein.';
+  });
 }
 // ADMIN SAVE LIVE MATCH
 async function saveLiveMatch() {
@@ -830,8 +862,14 @@ async function uploadChatImage(file, playerUid) {
 }
 
 async function createPlayerChatThread(firstMessage = '') {
-  const threadRef = doc(collection(db, 'chats'));
   const username = currentUser.displayName || (currentUser.email || 'Player').split('@')[0];
+  const existing = await getDocs(query(collection(db, 'chats'), where('playerUid', '==', currentUser.uid)));
+  if (!existing.empty) {
+    const latest = existing.docs.map(d => ({id:d.id, ...d.data()}))
+      .sort((a,b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0))[0];
+    return latest.id;
+  }
+  const threadRef = doc(collection(db, 'chats'));
   await setDoc(threadRef, {
     playerUid: currentUser.uid,
     playerUsername: username,
@@ -841,15 +879,103 @@ async function createPlayerChatThread(firstMessage = '') {
   });
   if (firstMessage) {
     await addDoc(collection(db, 'chats', threadRef.id, 'messages'), {
-      senderUid: currentUser.uid,
-      senderName: username,
-      text: firstMessage,
-      imageUrl: '',
-      system: false,
-      createdAt: serverTimestamp()
+      senderUid: currentUser.uid, senderName: username, text: firstMessage,
+      imageUrl: '', system: false, createdAt: serverTimestamp()
     });
   }
   return threadRef.id;
+}
+
+async function deletePrivateChat(threadId, playerUid) {
+  const messages = await getDocs(collection(db, 'chats', threadId, 'messages'));
+  for (let i = 0; i < messages.docs.length; i += 400) {
+    const batch = writeBatch(db);
+    messages.docs.slice(i, i + 400).forEach(item => batch.delete(item.ref));
+    await batch.commit();
+  }
+  await deleteDoc(doc(db, 'chats', threadId));
+  try { await deleteChatImages(playerUid); } catch (error) { console.warn('Chat image cleanup skipped:', error); }
+}
+
+async function sendBroadcastMessage(message) {
+  const cleanMessage = (message || '').trim();
+  if (!cleanMessage) return;
+  await addDoc(collection(db, 'broadcast', 'all-players', 'messages'), {
+    senderUid: currentUser.uid,
+    senderName: currentUser.uid === ADMIN_UID ? 'NEXZORA ADMIN' : (currentUser.displayName || 'PLAYER'),
+    text: cleanMessage,
+    createdAt: serverTimestamp()
+  });
+}
+
+function listenToBroadcastMessages() {
+  if (unsubscribeMessages) unsubscribeMessages();
+  unsubscribeMessages = onSnapshot(
+    query(collection(db, 'broadcast', 'all-players', 'messages'), orderBy('createdAt', 'asc')),
+    snapshot => {
+      const area = document.getElementById('messages');
+      if (!area) return;
+      area.innerHTML = '';
+      snapshot.forEach(item => {
+        const data = item.data();
+        const bubble = document.createElement('div');
+        bubble.className = 'message' + (data.senderUid === currentUser.uid ? ' mine' : '');
+        const name = document.createElement('div');
+        name.className = 'message-name';
+        name.textContent = data.senderName || 'PLAYER';
+        const body = document.createElement('div');
+        body.className = 'message-text';
+        body.textContent = data.text || '';
+        bubble.append(name, body);
+        area.appendChild(bubble);
+      });
+      area.scrollTop = area.scrollHeight;
+    },
+    error => {
+      console.error('All players chat error:', error);
+      const area = document.getElementById('messages');
+      if (area) area.textContent = 'Group chat load nahi hua. Firestore Rules publish karein.';
+    }
+  );
+}
+
+function openBroadcastChat(isAdmin = false, holder = app) {
+  if (unsubscribeMessages) unsubscribeMessages();
+  document.body.classList.add('chat-mode');
+  const content = `
+    <section class="chat-screen">
+      <header class="chat-topbar">
+        <button class="chat-back" id="close-broadcast-chat" aria-label="Back">‹</button>
+        <div><div class="chat-title">ALL PLAYERS</div><div class="chat-subtitle">NEXZORA COMMUNITY CHAT</div></div>
+      </header>
+      <div id="messages" class="messages"></div>
+      <form class="chat-composer" id="broadcast-chat-form">
+        <input id="broadcast-chat-input" maxlength="2000" placeholder="Message all players..." autocomplete="off">
+        <button type="submit" class="chat-send" aria-label="Send">➤</button>
+      </form>
+    </section>`;
+  if (isAdmin) holder.innerHTML = content;
+  else shell(content);
+  listenToBroadcastMessages();
+  document.getElementById('broadcast-chat-form').onsubmit = async event => {
+    event.preventDefault();
+    const input = document.getElementById('broadcast-chat-input');
+    if (!input.value.trim()) return;
+    const send = event.submitter || document.querySelector('.chat-send');
+    send.disabled = true;
+    try { await sendBroadcastMessage(input.value); input.value = ''; }
+    catch (error) { alert('Group message send nahi hua: ' + error.message); }
+    finally { send.disabled = false; }
+  };
+  document.getElementById('close-broadcast-chat').onclick = () => {
+    if (unsubscribeMessages) unsubscribeMessages();
+    unsubscribeMessages = null;
+    document.body.classList.remove('chat-mode');
+    if (isAdmin) {
+      holder.innerHTML = '';
+      document.getElementById('personal-chat-tab')?.click();
+    } else showPlayerInbox();
+  };
 }
 
 async function sendChatMessage(threadId, message, isAdmin = false, imageUrl = '', playerUid = '') {
@@ -949,23 +1075,40 @@ function showPlayerInbox() {
       const list = document.getElementById('player-chat-list');
       if (!list) return;
       list.innerHTML = '';
-      const threads = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      threads.sort((a,b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
-      if (!threads.length) {
-        list.textContent = 'Abhi koi chat nahi hai. ＋ dabakar new chat shuru karo.';
-        return;
-      }
-      threads.forEach(thread => {
+      const threads = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a,b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
+      const thread = threads[0];
+      if (thread) {
+        const row = document.createElement('div');
+        row.className = 'inbox-row';
         const button = document.createElement('button');
         button.className = 'inbox-item';
         const title = document.createElement('strong');
-        title.textContent = 'NEXZORA SUPPORT';
+        title.textContent = 'NEXZORA PERSONAL SUPPORT';
         const preview = document.createElement('span');
         preview.textContent = thread.lastMessage || 'Start conversation';
         button.append(title, preview);
         button.onclick = () => openPlayerChat(thread.id);
-        list.appendChild(button);
-      });
+        const remove = document.createElement('button');
+        remove.className = 'chat-delete';
+        remove.textContent = 'DELETE';
+        remove.onclick = async () => {
+          if (!confirm('Apni personal chat aur uske messages delete karne hain?')) return;
+          try { await deletePrivateChat(thread.id, currentUser.uid); }
+          catch (error) { alert('Chat delete nahi hui: ' + error.message); }
+        };
+        row.append(button, remove);
+        list.appendChild(row);
+      }
+      const group = document.createElement('button');
+      group.className = 'inbox-item group-chat-entry';
+      const groupTitle = document.createElement('strong');
+      groupTitle.textContent = '🌐 ALL PLAYERS CHAT';
+      const groupPreview = document.createElement('span');
+      groupPreview.textContent = 'Join the NEXZORA community conversation';
+      group.append(groupTitle, groupPreview);
+      group.onclick = () => openBroadcastChat(false);
+      list.appendChild(group);
     },
     error => {
       console.error(error);
