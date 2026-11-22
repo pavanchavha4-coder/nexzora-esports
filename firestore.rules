@@ -81,5 +81,16 @@ service cloud.firestore {
         allow delete: if isAdmin() || ownsChat(chatId);
       }
     }
+
+    // Shared room for every signed-in NEXZORA eSports player.
+    match /broadcast/{roomId}/messages/{messageId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.senderUid == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 2000;
+      allow update, delete: if isAdmin();
+    }
   }
 }
