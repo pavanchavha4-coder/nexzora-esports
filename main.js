@@ -1142,24 +1142,3 @@ onAuthStateChanged(auth, async user => {
     showPlayer();
   }
 });
-
-
-/* Multi-chat inbox */
-.inbox-page{min-height:100dvh;background:#09090b;color:#fff}
-.inbox-header{display:flex;align-items:center;gap:14px;padding:18px 14px;border-bottom:1px solid #29292e}
-.inbox-header .chat-title{font-size:22px;font-weight:900}
-.inbox-header .chat-back{width:42px;height:42px;padding:0;font-size:28px;background:#19191d}
-.inbox-new{margin-left:auto;width:44px;height:44px;padding:0;font-size:27px}
-.inbox-heading{padding:18px 16px 8px;color:#aaa;font-size:11px;letter-spacing:2px;font-weight:800}
-.chat-list{display:flex;flex-direction:column;gap:2px}
-.chat-list .inbox-item{width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:17px 16px;margin:0;border:0;border-bottom:1px solid #29292e;border-radius:0;background:#101013}
-.chat-list .inbox-item strong{font-size:15px;color:#fff}
-.chat-list .inbox-item span{font-size:13px;color:#aaa;font-weight:400;letter-spacing:0}
-.chat-mode #app{padding:0}
-
-
-/* Full-height Instagram-like admin inbox list */
-#admin-inbox>.panel{margin:0 -16px;padding:18px 0 0;border-left:0;border-right:0;border-radius:0;min-height:calc(100dvh - 170px)}
-#admin-inbox>.panel>.section-kicker,#admin-inbox>.panel>h2,#admin-inbox>.panel>p{margin-left:16px;margin-right:16px}
-#admin-inbox #chat-list{margin-top:18px}
-#admin-inbox #chat-list .inbox-item{min-height:76px}
