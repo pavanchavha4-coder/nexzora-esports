@@ -7,7 +7,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   onAuthStateChanged,
-  signOut
+  signOut,
+  updateProfile
 } from 'firebase/auth';
 
 import {
@@ -183,6 +184,7 @@ function showLogin() {
   shell(`
     <div class="panel">
       <h2>PLAYER LOGIN</h2>
+      <input id="username" type="text" maxlength="24" placeholder="Username (new accounts required)" autocomplete="username">
       <input id="email" type="email" placeholder="Email address">
       <input id="password" type="password" placeholder="Password">
       <button id="login">LOGIN</button>
@@ -192,11 +194,17 @@ function showLogin() {
 
   document.getElementById('login').onclick = async () => {
     try {
-      await signInWithEmailAndPassword(
+      const username = document.getElementById('username').value.trim();
+      const credential = await signInWithEmailAndPassword(
         auth,
         document.getElementById('email').value.trim(),
         document.getElementById('password').value
       );
+      if (username && credential.user.displayName &&
+          username.toLowerCase() !== credential.user.displayName.toLowerCase()) {
+        await signOut(auth);
+        alert('Username match nahi hua. Apna registered username enter karo.');
+      }
     } catch (error) {
       alert(error.message);
     }
@@ -204,15 +212,21 @@ function showLogin() {
 
   document.getElementById('register').onclick = async () => {
     try {
+      const username = document.getElementById('username').value.trim();
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
 
+      if (!/^[a-zA-Z0-9_]{3,24}$/.test(username)) {
+        alert('Username 3-24 characters ka hona chahiye. Sirf letters, numbers aur _ use karo.');
+        return;
+      }
       if (!email || password.length < 6) {
         alert('Email aur minimum 6 character password enter karo.');
         return;
       }
 
-      await createUserWithEmailAndPassword(auth, email, password);
+      const credential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(credential.user, { displayName: username });
     } catch (error) {
       alert(error.message);
     }
